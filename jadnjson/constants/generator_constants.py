@@ -13,6 +13,7 @@ BASE_16 = "base-16"
 BASE16 = "base16"
 
 
+POUND = "#"
 POUND_SLASH = "#/"
 POUND_SLASH_DEFINITIONS = "#/definitions"
 DEFINITIONS = "definitions"

@@ -53,6 +53,13 @@ class Generators(TestCase):
         assert g_data != None
         
     def test_gen_data_oc2ls(self):
+      
+        # TODO: Leftoff here, recurrision issues in ocs2l schemas.
+        # Process object has $ref called Process, which creates an infinite loop.
+        # May need to check for this and remove/ignore/warn where the parent name 
+        # equals an inner $ref definition/value  
+        # ocs2ls copy still has the looping issue
+      
         g_data = gen_data_from_schema(self.oc2ls_schema)
         
         print("----test gen data----")
