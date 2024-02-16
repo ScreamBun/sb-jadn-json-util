@@ -1,0 +1,74 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://fake-audio.org/music-lib",
+    "title": "Music Library",
+    "version": "1.0",
+    "description": "This information model defines a library of audio tracks, organized by album",
+    "license": "CC0-1.0",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "track": {
+        "$ref": "#/definitions/Track"
+      }
+    },
+    "required": [
+          "Track"
+    ],
+    "definitions": {
+      "Track": {
+        "title": "Track",
+        "type": "object",
+        "description": "information about the individual audio tracks",
+        "additionalProperties": false,
+        "required": [
+          "t_number",
+          "title",
+          "length"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "t_number": {
+            "type": "number",
+            "description": "track sequence number"
+          },
+          "title": {
+            "type": "string",
+            "description": "track title",
+            "maxLength": 255
+          },
+          "length": {
+            "type": "string",
+            "description": "length of track",
+            "format": "time",
+            "maxLength": 255
+          },
+          "featured": {
+            "type": "array",
+            "description": "important guest performers",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/definitions/Artist"
+            }
+          }        
+        }
+      },
+      "Artist": {
+        "title": "Artist",
+        "type": "object",
+        "description": "interesting information about the performers",
+        "additionalProperties": false,
+        "required": [
+          "artist_name"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "artist_name": {
+            "type": "string",
+            "description": "who is this person",
+            "maxLength": 255
+          }
+        }
+      }    
+    }
+  }
