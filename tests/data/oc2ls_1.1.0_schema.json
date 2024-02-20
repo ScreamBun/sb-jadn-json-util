@@ -566,6 +566,10 @@
           "$ref": "#/definitions/File",
           "description": "Executable that was executed to start the process"
         },
+        "parent": {
+          "$ref": "#/definitions/Process",
+          "description": "Process that spawned this one"
+        },
         "command_line": {
           "type": "string",
           "description": "The full command line invocation used to start this process, including all arguments",

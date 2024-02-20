@@ -1,14 +1,10 @@
-import asyncio
 import json
-import sys
-from threading import Thread
 from benedict import benedict
 from jsf import JSF
-# from faker_schema.faker_schema import FakerSchema
 import jsonpointer
 
 from jadnjson.constants import generator_constants
-from jadnjson.constants.generator_constants import ACTUAL_VAL, BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DOL_REF, ORIG_REF, PATH_TO_VAL, POUND, POUND_SLASH, SLASH_DOL_REF, UPDATED_REF
+from jadnjson.constants.generator_constants import BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DOL_REF, POUND, POUND_SLASH, SLASH_DOL_REF
 from jadnjson.validators.schema_validator import validate_schema
 
 
@@ -38,7 +34,19 @@ def find_fix_encoding(data: benedict) -> benedict:
     return data
 
 
-def find_update_refs(data: dict | benedict, replaceDefAndPropKeys: bool = True) -> benedict:
+def does_key_contain_ref(key: str, ref: str) -> bool:
+    
+    ref_item = ref.split('/')[-1]
+    key_path_list = key.split('/')
+    
+    return_val = False
+    if ref_item in key_path_list:
+        return_val = True
+        
+    return return_val
+
+
+def find_update_refs(data: dict | benedict) -> benedict:
     """
     Searches json data for inner $refs and updates them with their actual values. 
 
@@ -60,10 +68,15 @@ def find_update_refs(data: dict | benedict, replaceDefAndPropKeys: bool = True) 
             path_updated2 = path.replace(POUND_SLASH, "")
             ref_updated = key.replace(SLASH_DOL_REF, "")
             
-            value_test = jsonpointer.JsonPointer(path_updated).resolve(data)
-            # value_test2 = data.get(path_updated2)
-            # resolved_schema[ref_updated] = data.get(path_updated)
-            resolved_schema[ref_updated] = value_test
+            recursion_found = does_key_contain_ref(key, path_updated)
+            
+            if recursion_found:
+                # More then just refs may need to be checked......... 
+                print("warning: recursion found, removing for generation: ", ref_updated)
+                del resolved_schema[ref_updated]                 
+            else:
+                value_test = jsonpointer.JsonPointer(path_updated).resolve(data)
+                resolved_schema[ref_updated] = value_test
                                      
     return resolved_schema
 
@@ -95,21 +108,7 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
     print(resolved_schema.dump())         
     
     return resolved_schema
-
-def test(schema_bene):
-    fake_json = {}
-    try:   
-        faker = JSF(schema_bene)
-        fake_json = faker.generate()
-        # faker = FakerSchema()
-        # str_data = schema_bene.dump()
-        # fake_json = faker.generate_fake(schema_bene)        
-    except Exception as err:
-        raise Exception(err)  
     
-    return fake_json  
-    
-
 
 def gen_data_from_schema(schema: str) -> str:
     """
@@ -121,19 +120,10 @@ def gen_data_from_schema(schema: str) -> str:
     Returns:
         str: Fake generated data based on the JSON Schema
     """
-    sys.setrecursionlimit(10000)  # Warning....
-    
     schema_bene = resolve_inner_refs(schema)
     
     try:
-        daemon = Thread(target=test(schema_bene), daemon=True, name='Monitor')
-        daemon.start()        
-        # loop = asyncio.get_event_loop()
-        # try:
-        #     loop.run_until_complete(test(schema_bene))
-        # finally:
-        #     loop.close()
-        # validate_schema(schema_bene)
+        validate_schema(schema_bene)
     except Exception as err:
         raise Exception(err)    
     
@@ -142,10 +132,7 @@ def gen_data_from_schema(schema: str) -> str:
     fake_json = {}
     try:   
         faker = JSF(schema_bene)
-        fake_json = faker.generate()
-        # faker = FakerSchema()
-        # str_data = schema_bene.dump()
-        # fake_json = faker.generate_fake(schema_bene)        
+        fake_json = faker.generate()    
     except Exception as err:
         raise Exception(err)
     
