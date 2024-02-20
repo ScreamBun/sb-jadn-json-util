@@ -5,6 +5,9 @@ setup(
     version="1.0.0", 
     packages=["jadnjson", "jadnjson.generators", "jadnjson.constants", "jadnjson.utils", "jadnjson.validator"],
     install_requires=[
-
+        "jsf",
+        "jsonpointer",
+        "jsonschema",
+        "python-benedict"
     ]    
 )
