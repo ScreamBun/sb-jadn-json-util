@@ -57,28 +57,32 @@ def find_update_refs(data: dict | benedict) -> benedict:
     Returns:
         benedict: {ref, path_to_value}
     """
-    resolved_schema = data.clone()
     
     keys_list = data.keypaths(indexes=False)
-    for key in keys_list:
-        if DOL_REF in key:
-            path = data.get(key)
+    res = [i for i in keys_list if DOL_REF in i]
+    for key in res:
+        path = data.get(key)
+            
+        path_updated = path.replace(POUND, "")                
+        path_updated2 = path.replace(POUND_SLASH, "")
+        ref_updated = key.replace(SLASH_DOL_REF, "")
+        
+        recursion_found = does_key_contain_ref(key, path_updated)
+        
+        if recursion_found:
+            # More then just refs may need to be checked......... 
+            print("warning: recursion found, removing for generation: ", ref_updated)
+            del data[ref_updated]                 
+        else:
+            value_test = jsonpointer.JsonPointer(path_updated).resolve(data)
+            data[ref_updated] = value_test
                 
-            path_updated = path.replace(POUND, "")                
-            path_updated2 = path.replace(POUND_SLASH, "")
-            ref_updated = key.replace(SLASH_DOL_REF, "")
-            
-            recursion_found = does_key_contain_ref(key, path_updated)
-            
-            if recursion_found:
-                # More then just refs may need to be checked......... 
-                print("warning: recursion found, removing for generation: ", ref_updated)
-                del resolved_schema[ref_updated]                 
-            else:
-                value_test = jsonpointer.JsonPointer(path_updated).resolve(data)
-                resolved_schema[ref_updated] = value_test
+    keys_list_recheck = data.keypaths(indexes=False)
+    res = [i for i in keys_list_recheck if DOL_REF in i]
+    if res:
+        find_update_refs(data)
                                      
-    return resolved_schema
+    return data
 
 
 def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
@@ -98,19 +102,17 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
         schema = json.loads(schema)
     
     if isinstance(schema, dict):
-        resolved_schema = benedict(schema, keypath_separator="/")
-    else:
-        resolved_schema = schema
+        schema = benedict(schema, keypath_separator="/")
     
-    resolved_schema = find_fix_encoding(resolved_schema)
-    resolved_schema = find_update_refs(resolved_schema)
+    schema_encoding_fixed = find_fix_encoding(schema)
+    resolved_schema = find_update_refs(schema_encoding_fixed)
     
-    print(resolved_schema.dump())         
+    # print(resolved_schema.dump())         
     
     return resolved_schema
     
 
-def gen_data_from_schema(schema: str) -> str:
+def gen_data_from_schema(schema: str | dict) -> str:
     """
     Generates fake data based on the schema
 
@@ -127,7 +129,7 @@ def gen_data_from_schema(schema: str) -> str:
     except Exception as err:
         raise Exception(err)    
     
-    print(schema_bene.dump())
+    # print(schema_bene.dump())
     
     fake_json = {}
     try:   

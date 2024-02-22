@@ -1,0 +1,260 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://fake-audio.org/music-lib",
+    "title": "Music Library",
+    "version": "1.0",
+    "description": "This information model defines a library of audio tracks, organized by album",
+    "license": "CC0-1.0",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "library": {
+        "$ref": "#/definitions/Library"
+      },
+      "album": {
+        "$ref": "#/definitions/Album"
+      },
+      "track": {
+        "$ref": "#/definitions/Track"
+      }
+    },
+    "definitions": {
+      "Library": {
+        "title": "Library",
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "maxProperties": 100
+      },
+      "Album": {
+        "title": "Album",
+        "type": "object",
+        "description": "model for the album",
+        "additionalProperties": false,
+        "required": [
+          "artist",
+          "title",
+          "pub_data",
+          "tracks",
+          "cover_art"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "artist": {
+            "$ref": "#/definitions/Artist",
+            "description": "artist associated with this album"
+          },
+          "title": {
+            "type": "string",
+            "description": "commonly known title for this album",
+            "maxLength": 255
+          },
+          "pub_data": {
+            "$ref": "#/definitions/Publication-Data",
+            "description": "metadata about album publication"
+          },
+          "tracks": {
+            "type": "array",
+            "description": "individual track descriptions",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "description": "individual track descriptions",
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/definitions/Track"
+              }
+            }
+          },
+          "cover_art": {
+            "$ref": "#/definitions/Cover-Art",
+            "description": "cover art image for this album"
+          }
+        }
+      },
+      "Track": {
+        "title": "Track",
+        "type": "object",
+        "description": "information about the individual audio tracks",
+        "additionalProperties": false,
+        "required": [
+          "t_number",
+          "title",
+          "length",
+          "featured",
+          "audio"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "t_number": {
+            "type": "number",
+            "description": "track sequence number"
+          },
+          "title": {
+            "type": "string",
+            "description": "track title",
+            "maxLength": 255
+          },
+          "length": {
+            "type": "string",
+            "description": "length of track",
+            "format": "time",
+            "maxLength": 255
+          },
+          "featured": {
+            "type": "array",
+            "description": "important guest performers",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/definitions/Artist"
+            }
+          },
+          "audio": {
+            "$ref": "#/definitions/Audio",
+            "description": "the all important content"
+          }
+        }
+      },
+      "Barcode": {
+        "title": "Barcode",
+        "type": "string",
+        "description": "A UPC-A barcode is 12 digits",
+        "maxLength": 255,
+        "pattern": "\\d{12}"
+      },
+      "Artist": {
+        "title": "Artist",
+        "type": "object",
+        "description": "interesting information about the performers",
+        "additionalProperties": false,
+        "required": [
+          "artist_name",
+          "instruments"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "artist_name": {
+            "type": "string",
+            "description": "who is this person",
+            "maxLength": 255
+          },
+          "instruments": {
+            "type": "array",
+            "description": "and what do they play",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "description": "and what do they play",
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/definitions/Instrument"
+              }
+            }
+          }
+        }
+      },
+      "Instrument": {
+        "title": "Instrument",
+        "type": "string",
+        "description": "collection of instruments (non-exhaustive)",
+        "enum": [
+          "vocals",
+          "guitar",
+          "bass",
+          "drums",
+          "keyboards",
+          "percussion",
+          "brass",
+          "woodwinds",
+          "harmonica"
+        ]
+      },
+      "Publication-Data": {
+        "title": "Publication Data",
+        "type": "object",
+        "description": "who and when of publication",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "rel_date"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "name of record label",
+            "maxLength": 255
+          },
+          "rel_date": {
+            "type": "string",
+            "description": "and when did they let this drop",
+            "format": "date",
+            "maxLength": 255
+          }
+        }
+      },
+      "Audio": {
+        "title": "Audio",
+        "type": "object",
+        "description": "information about what gets played",
+        "additionalProperties": false,
+        "required": [
+          "a_format",
+          "a_content"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "a_format": {
+            "$ref": "#/definitions/Audio-Format",
+            "description": "what type of audio file?"
+          },
+          "a_content": {
+            "type": "string",
+            "description": "the audio data in the identified format",
+            "contentEncoding": "base64url"
+          }
+        }
+      },
+      "Audio-Format": {
+        "title": "Audio Format",
+        "type": "string",
+        "description": "can only be one, but can extend list",
+        "enum": [
+          "MP3",
+          "OGG",
+          "FLAC"
+        ]
+      },
+      "Cover-Art": {
+        "title": "Cover Art",
+        "type": "object",
+        "description": "pretty picture for the album",
+        "additionalProperties": false,
+        "required": [
+          "i_format",
+          "i_content"
+        ],
+        "maxProperties": 100,
+        "properties": {
+          "i_format": {
+            "$ref": "#/definitions/Image-Format",
+            "description": "what type of image file?"
+          },
+          "i_content": {
+            "type": "string",
+            "description": "the image data in the identified format",
+            "contentEncoding": "base64url"
+          }
+        }
+      },
+      "Image-Format": {
+        "title": "Image Format",
+        "type": "string",
+        "description": "can only be one, but can extend list",
+        "enum": [
+          "PNG",
+          "JPG"
+        ]
+      }
+    }
+  }
