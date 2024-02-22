@@ -104,6 +104,7 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
     if isinstance(schema, dict):
         schema = benedict(schema, keypath_separator="/")
     
+    # TODO: Add logic for maxItems 3? to speed up data generation
     schema_encoding_fixed = find_fix_encoding(schema)
     resolved_schema = find_update_refs(schema_encoding_fixed)
     
