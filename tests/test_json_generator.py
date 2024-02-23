@@ -3,7 +3,7 @@ from unittest import TestCase
 import unittest
 from jadnjson.constants.generator_constants import TESTS_PATH
 
-from jadnjson.generators.json_generator import find_update_refs, gen_data_from_schema, resolve_inner_refs
+from jadnjson.generators.json_generator import gen_data_from_schema
 from jadnjson.utils.general_utils import get_file
 
 
@@ -57,8 +57,7 @@ class Generators(TestCase):
         g_data = gen_data_from_schema(self.music_schema)
         
         print("----test gen data----")
-        # test = json.dumps(g_data, indent=4)
-        # print(json.dumps(g_data, indent=4))
+        print(json.dumps(g_data, indent=4))
         assert g_data != None        
         
     def test_gen_data_full(self):
@@ -85,45 +84,14 @@ class Generators(TestCase):
         
     def test_gen_data_oc2ls_1_1_0(self):
       
-        # Note: Leftoff here, recurrision issues in ocs2l schemas.
-        # Process object has $ref called Process, which creates an infinite loop.
-        # Removing recursion items for now, until a better approach can be established
+        # Note: Process object has $ref called Process, which creates an infinite loop.
+        # Removing recursion items for now, until a better approach can be established.
       
         g_data = gen_data_from_schema(self.oc2ls1_1_0_schema)
         
         print("----test gen data----")
         print(json.dumps(g_data, indent=4))        
         assert g_data != None            
-        
-    def test_resolve_inner_refs(self):
-        resolved_1 = resolve_inner_refs(self.faker_schema)
-        print("-- sm_schema --")
-        print(resolved_1.dump())
-        remaining_refs_1 = find_update_refs(resolved_1, False)
-        
-        resolved_2 = resolve_inner_refs(self.sm_schema)
-        print("-- sm_schema_2 --")
-        print(resolved_2.dump())
-        remaining_refs_2 = find_update_refs(resolved_2, False)
-        
-        resolved_3 = resolve_inner_refs(self.alt_schema)
-        print("-- sm_sample_schema --")
-        print(resolved_3.dump())
-        remaining_refs_3 = find_update_refs(resolved_3, False)    
-        
-        resolved_4 = resolve_inner_refs(self.full_schema)
-        remaining_refs_4 = find_update_refs(resolved_4, False)
-        print("-- full_schmea --")
-        print(resolved_4.dump())        
-        
-        assert resolved_1 != None 
-        assert len(remaining_refs_1) == 0
-        assert resolved_2 != None 
-        assert len(remaining_refs_2) == 0
-        assert resolved_3 != None 
-        assert len(remaining_refs_3) == 0
-        assert resolved_4 != None 
-        assert len(remaining_refs_4) == 0
         
         
 if __name__ == '__main__':

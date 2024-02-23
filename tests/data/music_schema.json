@@ -17,7 +17,7 @@
       "track": {
         "$ref": "#/definitions/Track"
       }
-    },
+    },   
     "definitions": {
       "Library": {
         "title": "Library",

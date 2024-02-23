@@ -21,6 +21,8 @@ def find_fix_encoding(data: benedict) -> benedict:
                     new_encoding_type = BASE_64
                 case generator_constants.BASE64:
                     new_encoding_type = BASE_64
+                case generator_constants.BASE_64:
+                    new_encoding_type = BASE_64                    
                 case generator_constants.BASE32:
                     new_encoding_type = BASE_32
                 case generator_constants.BASE16:
@@ -62,20 +64,21 @@ def find_update_refs(data: dict | benedict) -> benedict:
     res = [i for i in keys_list if DOL_REF in i]
     for key in res:
         path = data.get(key)
+        
+        if isinstance(path, str):
+            path_updated = path.replace(POUND, "")                
+            path_updated2 = path.replace(POUND_SLASH, "")
+            ref_updated = key.replace(SLASH_DOL_REF, "")
             
-        path_updated = path.replace(POUND, "")                
-        path_updated2 = path.replace(POUND_SLASH, "")
-        ref_updated = key.replace(SLASH_DOL_REF, "")
-        
-        recursion_found = does_key_contain_ref(key, path_updated)
-        
-        if recursion_found:
-            # More then just refs may need to be checked......... 
-            print("warning: recursion found, removing for generation: ", ref_updated)
-            del data[ref_updated]                 
-        else:
-            value_test = jsonpointer.JsonPointer(path_updated).resolve(data)
-            data[ref_updated] = value_test
+            recursion_found = does_key_contain_ref(key, path_updated)
+            
+            if recursion_found:
+                # More then just refs may need to be checked......... 
+                print("warning: recursion found, removing for generation: ", ref_updated)
+                del data[ref_updated]                 
+            else:
+                value_test = jsonpointer.JsonPointer(path_updated).resolve(data)
+                data[ref_updated] = value_test
                 
     keys_list_recheck = data.keypaths(indexes=False)
     res = [i for i in keys_list_recheck if DOL_REF in i]
@@ -83,6 +86,76 @@ def find_update_refs(data: dict | benedict) -> benedict:
         find_update_refs(data)
                                      
     return data
+
+def limit_max_items(schema: benedict, limit: int) -> benedict:
+    
+    key_type = "type"
+    val_array = "array"
+    max_items_tag = "/maxItems"
+    min_items_tag = "/minItems"
+    path_delimiter = "/"
+    
+    keys_list = schema.keypaths(indexes=True)
+    for key in keys_list:
+        
+        if path_delimiter in key:
+            key_split = key.rsplit(path_delimiter, 1)
+            parent_key = key_split[0]
+            last_key = key_split[1]
+        else:
+            last_key = key
+            parent_key = key
+        
+        if last_key == key_type:
+            val = schema.get(key)
+            
+            if val == val_array:
+                max_items_path = parent_key + max_items_tag
+                schema[max_items_path] = limit
+              
+        min_items_path = parent_key + min_items_tag
+        min_items = schema.get(min_items_path)
+        if min_items and min_items > limit:
+            schema[min_items_path] = limit
+            
+    
+    # print(schema.dump())
+    
+    return schema
+
+def add_required_root_items(schema: benedict) -> benedict:
+
+    if not schema.get("required"):
+
+        properties = schema.get("properties")
+        definitions = schema.get("definitions")
+        reqs = []
+        
+        if properties:
+            prop_list = properties.keypaths(indexes=False)
+            
+            for prop in prop_list:
+                # prop_name = properties.get(prop)
+                if "/" not in prop:
+                    reqs.append(prop)         
+            
+            required = schema.get("required")
+            if not required:
+                schema["required"] = reqs
+                
+        elif definitions:
+            prop_list = definitions.keypaths(indexes=False)[0]
+            
+            for prop in prop_list:
+                prop_name = properties.get(prop)
+                reqs.append(prop_name)              
+            
+            required = schema.get("required")
+            if not required:
+               schema["required"] = reqs        
+            
+                
+    return schema
 
 
 def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
@@ -104,16 +177,19 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
     if isinstance(schema, dict):
         schema = benedict(schema, keypath_separator="/")
     
-    # TODO: Add logic for maxItems 3? to speed up data generation
-    schema_encoding_fixed = find_fix_encoding(schema)
+    # TODO: Configurable limit and per type, hardcoded for arrays and 3 max items
+    limit = 3
+    schema_reqs_added = add_required_root_items(schema)
+    schema_limited = limit_max_items(schema_reqs_added, limit)
+    schema_encoding_fixed = find_fix_encoding(schema_limited)
     resolved_schema = find_update_refs(schema_encoding_fixed)
     
-    # print(resolved_schema.dump())         
+    print(resolved_schema.dump())         
     
     return resolved_schema
     
 
-def gen_data_from_schema(schema: str | dict) -> str:
+def gen_data_from_schema(schema: dict) -> str:
     """
     Generates fake data based on the schema
 
@@ -123,14 +199,21 @@ def gen_data_from_schema(schema: str | dict) -> str:
     Returns:
         str: Fake generated data based on the JSON Schema
     """
+    
+    # Validate before changes
+    try:
+        validate_schema(schema)
+    except Exception as err:
+        raise Exception(err)  
+    
+    
     schema_bene = resolve_inner_refs(schema)
     
+    # Validate agaion after changes
     try:
         validate_schema(schema_bene)
     except Exception as err:
         raise Exception(err)    
-    
-    # print(schema_bene.dump())
     
     fake_json = {}
     try:   
