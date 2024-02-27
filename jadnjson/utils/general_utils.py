@@ -1,6 +1,17 @@
 import os
 
 
+def get_last_occurance(val: str, split_on: chr, lower: bool = False) -> str: 
+    
+    return_val = val
+    if val and split_on in val:
+        return_val = val.split(split_on)[-1]
+    
+        if lower:
+            return_val = return_val.lower()
+    
+    return return_val
+
 def get_file(file_name: str, relative_path: str) -> str:
     file_dir = os.path.dirname(os.path.realpath('__file__'))
     # print(file_dir)
@@ -31,6 +42,8 @@ def remove_chars(val_str: str, to_be_removed: str, num_of_chars: int) -> str:
     Returns:
         return (str): updated string with characters removed 
     """
-    return_val = None
+    return_val = val_str
     if val_str and len(val_str) > 1 and to_be_removed == val_str[:num_of_chars]:
         return_val = val_str[num_of_chars:]
+        
+    return return_val
