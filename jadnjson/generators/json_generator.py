@@ -67,8 +67,7 @@ def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:
     key = remove_chars(key, "/", 1)  
     pointer = remove_chars(pointer, "/", 1)             
     pointer_name = get_last_occurance(pointer, '/', True)
-    pointer_data = data.get(pointer)
-    print('*** pointer: ', pointer)   
+    pointer_data = data.get(pointer) 
     pointer_keys = pointer_data.keypaths(indexes=False)        
     inner_refs = [i for i in pointer_keys if DOL_REF in i]
     
@@ -94,9 +93,9 @@ def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:
     return recursion_found
 
 
-def find_update_refs(data: dict | benedict) -> benedict:
+def find_update_refs(schema: dict | benedict) -> benedict:
     """
-    Searches json data for inner $refs and updates them with their actual values. 
+    Searches the json schema for inner $refs and updates them with their actual values. 
     Attempts to detect recursion in refs.  If recursion is found, then that item is removed
     from the JSON Schema used for data generation.  Otherwise the data generation hits an endless loop.  
 
@@ -107,39 +106,30 @@ def find_update_refs(data: dict | benedict) -> benedict:
         benedict: {ref, pointer_to_value}
     """
     
-    keys_list = data.keypaths(indexes=False)
+    keys_list = schema.keypaths(indexes=False)
     ref_key_list = [i for i in keys_list if i.endswith(DOL_REF)]
     for ref_key in ref_key_list:
-        pointer = data.get(ref_key)
+        pointer = schema.get(ref_key)
         
         if isinstance(pointer, str) and POUND in pointer:
             path_updated = pointer.replace(POUND, "")                
             ref_updated = ref_key.replace(SLASH_DOL_REF, "")
             
-            recursion_found = is_recursion_found(data, ref_updated, path_updated)
+            recursion_found = is_recursion_found(schema, ref_updated, path_updated)
             
             if recursion_found:
                 print("warning: recursion found, removing for generation: ", ref_updated)
-                del data[ref_updated]                 
+                del schema[ref_updated]                 
             else:
-                resolved_data = jsonpointer.JsonPointer(path_updated).resolve(data)
-
-                try:
-                    print("* ", ref_updated)
-                    if ref_updated == "definitions/related-response/properties/related-tasks":
-                        test = ""
-                        
-                    data[ref_updated] = resolved_data
-                except RecursionError as err:
-                    del data[ref_updated]
-                    print("Recurrion error, ref removed from data gen -> ", ref_updated, resolved_data)
+                resolved_data = jsonpointer.JsonPointer(path_updated).resolve(schema)
+                schema[ref_updated] = resolved_data
                 
-    keys_list_recheck = data.keypaths(indexes=False)
+    keys_list_recheck = schema.keypaths(indexes=False)
     ref_key_list = [i for i in keys_list_recheck if DOL_REF in i]
     if ref_key_list:
-        find_update_refs(data)
+        find_update_refs(schema)
                                      
-    return data
+    return schema
 
 
 def limit_max_items(schema: benedict, limit: int = 3) -> benedict:
@@ -278,9 +268,11 @@ def adjust_patterns(schema: benedict) -> benedict:
         
         if pattern == DATETIME_TIMEZONE_ORIG:
             schema[pattern_key] = DATETIME_TIMEZONE_REVISED
+            print("* datetime timezone pattern revised")
             
         if pattern == NCNAME_ORIG:
             schema[pattern_key] = NCNAME_REVISED
+            print("* ncname pattern revised")
     
     return schema
 
