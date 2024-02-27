@@ -184,9 +184,6 @@ def limit_max_items(schema: benedict, limit: int = 3) -> benedict:
         min_items = schema.get(min_items_path)
         if min_items and min_items > limit:
             schema[min_items_path] = limit
-            
-    
-    # print(schema.dump())
     
     return schema
 
@@ -232,6 +229,17 @@ def add_required_root_items(schema: benedict) -> benedict:
 
 
 def fix_root_ref(schema: benedict) -> benedict:
+    """
+    Some JSON Schemas contain a single root level $ref, no properties and definitions.
+    The data generator has trouble with these, so to be consistant, this function
+    creates the missing properties object based on the single root $ref.
+
+    Args:
+        schema (benedict): JSON Schema
+
+    Returns:
+        benedict: JSON Schema updated to contain a properties object
+    """
     
     root_ref = schema.get("$ref")
     properties = schema.get("properties")
@@ -251,6 +259,16 @@ def fix_root_ref(schema: benedict) -> benedict:
     return schema
 
 def adjust_patterns(schema: benedict) -> benedict:
+    """
+    Looks for regex patterns that don't jive with the data generator and 
+    updates them with comparable patterns that the data generator is happy with. 
+
+    Args:
+        schema (benedict): JSON Schema
+
+    Returns:
+        benedict: JSON Schema with data gen safe patterns
+    """
 
     keys_list = schema.keypaths(indexes=False)
     pattern_key_list = [i for i in keys_list if i.endswith("pattern")]
