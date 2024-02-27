@@ -4,7 +4,7 @@ from jsf import JSF
 import jsonpointer
 
 from jadnjson.constants import generator_constants
-from jadnjson.constants.generator_constants import BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DATETIME_TIMEZONE_ORIG, DATETIME_TIMEZONE_REVISED, DOL_REF, POUND, POUND_SLASH, SLASH_DOL_REF
+from jadnjson.constants.generator_constants import BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DATETIME_TIMEZONE_ORIG, DATETIME_TIMEZONE_REVISED, DOL_REF, NCNAME_ORIG, NCNAME_REVISED, POUND, POUND_SLASH, SLASH_DOL_REF
 from jadnjson.utils.general_utils import get_last_occurance, remove_chars
 from jadnjson.validators.schema_validator import validate_schema
 
@@ -260,6 +260,9 @@ def adjust_patterns(schema: benedict) -> benedict:
         
         if pattern == DATETIME_TIMEZONE_ORIG:
             schema[pattern_key] = DATETIME_TIMEZONE_REVISED
+            
+        if pattern == NCNAME_ORIG:
+            schema[pattern_key] = NCNAME_REVISED
     
     return schema
 
