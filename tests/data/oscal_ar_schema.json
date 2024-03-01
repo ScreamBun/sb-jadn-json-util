@@ -2670,7 +2670,8 @@
           "uuid",
           "description",
           "methods",
-          "collected"
+          "collected",
+          "Type"
         ],
         "maxProperties": 555,
         "properties": {

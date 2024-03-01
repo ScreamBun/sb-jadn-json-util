@@ -3,8 +3,8 @@ from unittest import TestCase
 import unittest
 from jadnjson.constants.generator_constants import TESTS_PATH
 
-from jadnjson.generators.json_generator import gen_data_from_schema
-from jadnjson.utils.general_utils import get_file
+from jadnjson.generators.json_generator import gen_data_from_schema, resolve_inner_refs
+from jadnjson.utils.general_utils import get_file, write_to_file
 
 
 class Generators(TestCase):
@@ -112,6 +112,9 @@ class Generators(TestCase):
     def test_gen_data_oc2ls_1_1_0(self):
         g_data = gen_data_from_schema(self.oc2ls1_1_0_schema)
         
+        # write_filename = "mock_data.json"
+        # write_to_file(g_data, write_filename)         
+        
         print("----test gen data----")
         print(json.dumps(g_data, indent=4))        
         assert g_data != None
@@ -125,6 +128,9 @@ class Generators(TestCase):
         
     def test_gen_data_oscal_ar(self):
         g_data = gen_data_from_schema(self.oscal_ar_schema)
+        
+        write_filename = "mock_data.json"
+        write_to_file(g_data, write_filename)            
         
         print("----test gen data----")
         print(json.dumps(g_data, indent=4))        
@@ -163,7 +169,15 @@ class Generators(TestCase):
         
         print("----test ssp gen data----")
         print(json.dumps(g_data, indent=4))        
-        assert g_data != None            
+        assert g_data != None
+        
+    def test_resolve_inner_refs(self):
+        resolved_schema = resolve_inner_refs(self.oc2ls1_1_0_schema)
+        
+        write_filename = "resolved_schema.json"
+        write_to_file(resolved_schema, write_filename) 
+        
+        assert resolved_schema != None                  
         
 if __name__ == '__main__':
     unittest.main()

@@ -4,8 +4,8 @@ from jsf import JSF
 import jsonpointer
 
 from jadnjson.constants import generator_constants
-from jadnjson.constants.generator_constants import BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DATETIME_TIMEZONE_ORIG, DATETIME_TIMEZONE_REVISED, DOL_REF, NCNAME_ORIG, NCNAME_REVISED, POUND, POUND_SLASH, SLASH_DOL_REF
-from jadnjson.utils.general_utils import get_last_occurance, remove_chars
+from jadnjson.constants.generator_constants import ADDITIONAL_PROPS, BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DATETIME_TIMEZONE_ORIG, DATETIME_TIMEZONE_REVISED, DEFINITIONS, DOL_REF, MAX_ITEMS, MIN_ITEMS, NCNAME_ORIG, NCNAME_REVISED, OBJECT, POUND, POUND_SLASH, PROPERTIES, REQUIRED, RES_WORD_TYPE, RES_WORD_TYPE_ALT, SLASH_DOL_REF, TYPE
+from jadnjson.utils.general_utils import get_keys, get_last_occurance, remove_chars
 from jadnjson.validators.schema_validator import validate_schema
 
 
@@ -112,17 +112,17 @@ def find_update_refs(schema: dict | benedict) -> benedict:
         pointer = schema.get(ref_key)
         
         if isinstance(pointer, str) and POUND in pointer:
-            path_updated = pointer.replace(POUND, "")                
-            ref_updated = ref_key.replace(SLASH_DOL_REF, "")
+            pointer_updated = pointer.replace(POUND, "")                
+            ref_key_updated = ref_key.replace(SLASH_DOL_REF, "")
             
-            recursion_found = is_recursion_found(schema, ref_updated, path_updated)
+            recursion_found = is_recursion_found(schema, ref_key_updated, pointer_updated)
             
             if recursion_found:
-                print("warning: recursion found, removing for generation: ", ref_updated)
-                del schema[ref_updated]                 
+                print("warning: recursion found, removing for generation: ", ref_key_updated)
+                del schema[ref_key_updated]                 
             else:
-                resolved_data = jsonpointer.JsonPointer(path_updated).resolve(schema)
-                schema[ref_updated] = resolved_data
+                resolved_data = jsonpointer.JsonPointer(pointer_updated).resolve(schema)
+                schema[ref_key_updated] = resolved_data
                 
     keys_list_recheck = schema.keypaths(indexes=False)
     ref_key_list = [i for i in keys_list_recheck if DOL_REF in i]
@@ -146,34 +146,19 @@ def limit_max_items(schema: benedict, limit: int = 3) -> benedict:
         benedict: Updated JSON Schema with limits added
     """
     
-    key_type = "type"
-    val_array = "array"
-    max_items_tag = "/maxItems"
-    min_items_tag = "/minItems"
-    path_delimiter = "/"
-    
-    keys_list = schema.keypaths(indexes=True)
-    for key in keys_list:
-        
-        if path_delimiter in key:
-            key_split = key.rsplit(path_delimiter, 1)
-            parent_key = key_split[0]
-            last_key = key_split[1]
-        else:
-            last_key = key
-            parent_key = key
-        
-        if last_key == key_type:
-            val = schema.get(key)
+    max_items_key_list = get_keys(schema, False, MAX_ITEMS)
+    for max_item_key in max_items_key_list:
+        max_val = schema.get(max_item_key)
+        if max_val > limit:
+            schema[max_item_key] = limit
+            print("maxItems updated, was ", max_val)
             
-            if val == val_array:
-                max_items_path = parent_key + max_items_tag
-                schema[max_items_path] = limit
-              
-        min_items_path = parent_key + min_items_tag
-        min_items = schema.get(min_items_path)
-        if min_items and min_items > limit:
-            schema[min_items_path] = limit
+    min_items_key_list = get_keys(schema, False, MIN_ITEMS)
+    for min_item_key in min_items_key_list:
+        min_val = schema.get(min_item_key)
+        if min_val > limit:
+            schema[min_item_key] = limit
+            print("minItems updated, was ", min_val)
     
     return schema
 
@@ -189,10 +174,10 @@ def add_required_root_items(schema: benedict) -> benedict:
         benedict: returns an updated JSON Schema with a required item
     """
 
-    if not schema.get("required"):
+    if not schema.get(REQUIRED):
 
-        properties = schema.get("properties")
-        definitions = schema.get("definitions")
+        properties = schema.get(PROPERTIES)
+        definitions = schema.get(DEFINITIONS)
         reqs = []
         
         if properties:
@@ -202,17 +187,17 @@ def add_required_root_items(schema: benedict) -> benedict:
                 if "/" not in prop:
                     reqs.append(prop)         
             
-            required = schema.get("required")
+            required = schema.get(REQUIRED)
             if not required:
-                schema["required"] = reqs
+                schema[REQUIRED] = reqs
                 
         elif definitions:
             defi = definitions.keypaths(indexes=False)[0]
             reqs.append(defi)              
             
-            required = schema.get("required")
+            required = schema.get(REQUIRED)
             if not required:
-               schema["required"] = reqs        
+               schema[REQUIRED] = reqs        
             
                 
     return schema
@@ -231,22 +216,96 @@ def fix_root_ref(schema: benedict) -> benedict:
         benedict: JSON Schema updated to contain a properties object
     """
     
-    root_ref = schema.get("$ref")
-    properties = schema.get("properties")
-    type = schema.get("type")
-    additionalProperties = schema.get("additionalProperties")
+    root_ref = schema.get(DOL_REF)
+    properties = schema.get(PROPERTIES)
+    type = schema.get(TYPE)
+    additionalProperties = schema.get(ADDITIONAL_PROPS)
      
     if root_ref and not properties:
-        schema["properties/root/$ref"] = root_ref
-        del schema["$ref"]
+        root_name = get_last_occurance(root_ref, "/", False)
+        new_props_path = PROPERTIES + "/" + root_name + "/" + DOL_REF
+        
+        schema[new_props_path] = root_ref
+        del schema[DOL_REF]
 
         if not type:
-            schema["type"] = "object"
+            schema[TYPE] = OBJECT
             
         if not additionalProperties:
-            schema["additionalProperties"] = False
+            schema[ADDITIONAL_PROPS] = False
     
     return schema
+
+def replace_reserved_words(schema: benedict) -> benedict:
+    """
+    Looks for revered words and sets them to an alternate name.
+
+    Args:
+        schema (benedict): JSON Schema
+
+    Returns:
+        benedict: JSON Schema with updated reserve words.
+    """
+
+    res_type_key_list = get_keys(schema, False, RES_WORD_TYPE)
+    removed_keys = []
+    
+    # Update keys
+    for type_key in res_type_key_list:
+        copy_obj = schema.get(type_key)
+        copy_obj_key = type_key.replace(RES_WORD_TYPE, RES_WORD_TYPE_ALT) 
+        schema[copy_obj_key] = copy_obj
+        del schema[type_key]
+        removed_keys.append(type_key)
+        print("Reserved word found in keys and updated", type_key) 
+        
+    # Update ref pointers
+    ref_key_list = get_keys(schema, False, DOL_REF)
+    for ref_key in ref_key_list:
+        pointer = schema.get(ref_key)
+        if isinstance(pointer, str):
+            
+            pointer_filtered = pointer.replace(POUND_SLASH, "") 
+            if pointer_filtered in removed_keys:
+                
+                pointer_updated = pointer.replace(RES_WORD_TYPE, RES_WORD_TYPE_ALT) 
+                schema[ref_key] = pointer_updated
+                print("Reserved word found in ref and updated", pointer)  
+            
+    # Update required fields
+    req_key_list = get_keys(schema, False, REQUIRED)
+    for req_key in req_key_list:
+        req_array = schema.get(req_key)
+        if RES_WORD_TYPE in req_array:
+            
+            for index, req in enumerate(req_array):
+                if req == RES_WORD_TYPE:
+                    req_array[index] = RES_WORD_TYPE_ALT
+                    schema[req_key] = req_array           
+                    print("Reserved word found in required fields and updated", req_key) 
+    
+    return schema
+
+
+def update_unique_items(schema: benedict, set_to: bool = False) -> benedict:
+    """
+    Looks for uniqueItems and updates them to the set_to bool provided. 
+
+    Args:
+        schema (benedict): JSON Schema
+
+    Returns:
+        benedict: JSON Schema with uniqueItems updated
+    """
+
+    keys_list = schema.keypaths(indexes=False)
+    unique_items_key_list = [i for i in keys_list if i.endswith("uniqueItems")]
+    
+    for unique_items_key in unique_items_key_list:
+        schema[unique_items_key] = set_to
+    
+    return schema
+
 
 def adjust_patterns(schema: benedict) -> benedict:
     """
@@ -298,14 +357,14 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
     
     # TODO: Configurable limit and per type, hardcoded for arrays and 3 max items
     limit = 3
-    schmea_patterns_adjusted = adjust_patterns(schema)
+    schmea_reserved_words_updated = replace_reserved_words(schema)
+    schmea_unique_items_updated = update_unique_items(schmea_reserved_words_updated)
+    schmea_patterns_adjusted = adjust_patterns(schmea_unique_items_updated)
     schema_fixed_props = fix_root_ref(schmea_patterns_adjusted)
     schema_reqs_added = add_required_root_items(schema_fixed_props)
     schema_limited = limit_max_items(schema_reqs_added, limit)
     schema_encoding_fixed = find_fix_encoding(schema_limited)
-    resolved_schema = find_update_refs(schema_encoding_fixed)
-    
-    print(resolved_schema.dump())         
+    resolved_schema = find_update_refs(schema_encoding_fixed)    
     
     return resolved_schema
     
