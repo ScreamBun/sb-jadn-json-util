@@ -367,6 +367,16 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
     resolved_schema = find_update_refs(schema_encoding_fixed)    
     
     return resolved_schema
+
+def validate_schema(schema: dict) -> str:
+    result = "VALID"
+    
+    try:
+        validate_schema(schema)
+    except Exception as err:
+        raise Exception(err)
+    
+    return result  
     
 
 def gen_data_from_schema(schema: dict) -> str:
