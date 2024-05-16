@@ -100,7 +100,7 @@ class Generators(TestCase):
         
         print("----test alt gen data----")
         print(json.dumps(g_data, indent=4))        
-        assert g_data != None        
+        assert g_data != None                 
         
     def test_gen_data_oc2ls_1_0_1(self):
         g_data = gen_data_from_schema(self.oc2ls1_0_1_schema)

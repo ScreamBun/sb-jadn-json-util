@@ -1,12 +1,50 @@
 import json
 from benedict import benedict
 from jsf import JSF
+from faker import Faker
 import jsonpointer
 
 from jadnjson.constants import generator_constants
 from jadnjson.constants.generator_constants import ADDITIONAL_PROPS, BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DATETIME_TIMEZONE_ORIG, DATETIME_TIMEZONE_REVISED, DEFINITIONS, DOL_REF, MAX_ITEMS, MIN_ITEMS, NCNAME_ORIG, NCNAME_REVISED, OBJECT, POUND, POUND_SLASH, PROPERTIES, REQUIRED, RES_WORD_TYPE, RES_WORD_TYPE_ALT, SLASH_DOL_REF, TYPE
 from jadnjson.utils.general_utils import get_keys, get_last_occurance, remove_chars
 from jadnjson.validators.schema_validator import validate_schema
+
+
+def find_choices(bene_schema: benedict) -> dict:
+    choices_found_dict = {}
+    keys = bene_schema.keypaths(True)
+    
+    for k in keys:
+        
+        value = bene_schema.get(k)
+        if isinstance(value, benedict):
+            
+            min_prop_val = value.get('minProperties')
+            max_prop_val = value.get('maxProperties')
+            
+            if min_prop_val == 1 and max_prop_val == 1:
+                print("choice found, capturing for later")
+                
+                if "definitions/" in k:
+                   k = k.replace("definitions/", "")
+                   
+                if "properties/" in k:
+                   k = k.replace("properties/", "")
+                        
+                choices_found_dict[k] = value
+            elif max_prop_val == 1:
+                print("choice found, capturing for later")
+                
+                if "definitions/" in k:
+                   k = k.replace("definitions/", "")
+                   
+                if "properties/" in k:
+                   k = k.replace("properties/", "")
+                        
+                choices_found_dict[k] = value                
+                
+            
+    return choices_found_dict
 
 
 def find_fix_encoding(data: benedict) -> benedict:
@@ -22,9 +60,14 @@ def find_fix_encoding(data: benedict) -> benedict:
         benedict: Updated JSON Schema
     """
     
-    keys_list = data.keypaths(indexes=False)
+    keys_list = data.keypaths(indexes=True)
     for key in keys_list:
-        if CONTENT_ENCODING in key:
+        
+        value = data.get(key)
+        if isinstance(value, benedict):
+            find_fix_encoding(value)            
+            
+        elif CONTENT_ENCODING in key:
             encoding_type = data.get(key)
             new_encoding_type = None
             
@@ -68,27 +111,33 @@ def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:
     pointer = remove_chars(pointer, "/", 1)             
     pointer_name = get_last_occurance(pointer, '/', True)
     pointer_data = data.get(pointer) 
-    pointer_keys = pointer_data.keypaths(indexes=False)        
-    inner_refs = [i for i in pointer_keys if DOL_REF in i]
     
-    parent_keys = key.split('/')
-    parent_keys = list(map(str.lower, parent_keys))
+    if pointer_data == None:
+        print('pointer_data == None')
+    elif not isinstance(pointer_data, benedict):
+        print('not isinstance(pointer_data, benedict)')        
+    else:
+        pointer_keys = pointer_data.keypaths(indexes=False)
+        inner_refs = [i for i in pointer_keys if DOL_REF in i]
+        
+        parent_keys = key.split('/')
+        parent_keys = list(map(str.lower, parent_keys))
 
-    # Must be more than one, because the pointer resolve could contian the pointer name    
-    if parent_keys.count(pointer_name) > 1:
-        recursion_found = True
-        
-    elif pointer_keys.count(pointer_name) >= 1:
-        recursion_found = True        
-        
-    elif inner_refs:
-        
-        for inner_ref in inner_refs:
-            inner_pointer_path = pointer_data.get(inner_ref)
-            innner_pointer_name = get_last_occurance(inner_pointer_path, '/', True)
-            if innner_pointer_name in parent_keys:
-                recursion_found = True
-                break        
+        # Must be more than one, because the pointer resolve could contian the pointer name    
+        if parent_keys.count(pointer_name) > 1:
+            recursion_found = True
+            
+        elif pointer_keys.count(pointer_name) >= 1:
+            recursion_found = True        
+            
+        elif inner_refs:
+            
+            for inner_ref in inner_refs:
+                inner_pointer_path = pointer_data.get(inner_ref)
+                innner_pointer_name = get_last_occurance(inner_pointer_path, '/', True)
+                if innner_pointer_name in parent_keys:
+                    recursion_found = True
+                    break        
         
     return recursion_found
 
@@ -336,7 +385,7 @@ def adjust_patterns(schema: benedict) -> benedict:
     return schema
 
 
-def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
+def resolve_inner_refs(schema: str | dict | benedict) -> {benedict, dict}:
     """
     Searches the json schema for inner refs ($ref) and replaces them with their actual values.  
     In other words, resovling the references.  Attempts to detect recursion and skips it if found.
@@ -364,19 +413,75 @@ def resolve_inner_refs(schema: str | dict | benedict) -> benedict:
     schema_reqs_added = add_required_root_items(schema_fixed_props)
     schema_limited = limit_max_items(schema_reqs_added, limit)
     schema_encoding_fixed = find_fix_encoding(schema_limited)
-    resolved_schema = find_update_refs(schema_encoding_fixed)    
+    resolved_schema = find_update_refs(schema_encoding_fixed) 
     
-    return resolved_schema
+    choices_found_dict = find_choices(resolved_schema)   
+    
+    return resolved_schema, choices_found_dict
 
-def validate_schema(schema: dict) -> str:
-    result = "VALID"
+
+def get_all_keys(d):
+    for key, value in d.items():
+        yield key
+        if isinstance(value, dict):
+            yield from get_all_keys(value)
+        else:
+            if isinstance(value, str) and "base64url" in value:
+                print(key)
     
-    try:
-        validate_schema(schema)
-    except Exception as err:
-        raise Exception(err)
+                
+def build_missing_data(data_schema: dict) -> benedict:
+    fake = Faker()
+    obj_name = None
+    data_name = None
+    data_val = None
     
-    return result  
+    for data_k, data_val in data_schema.items():
+        obj_name = data_k
+        
+        if data_k == "properties":
+        
+            for prop_k, prop_val in data_val.items():
+                
+                data_name = prop_k
+                
+                for inner_prop_k, inner_prop_val in prop_val.items():
+            
+                    if inner_prop_k == "type":
+                        data_type = inner_prop_val
+                        
+                        if data_type == "string":
+                            
+                            data_max = None
+                            if inner_prop_k == "maxLength":
+                                data_max = inner_prop_val                
+                            
+                            data_val = fake.pystr(max_chars=data_max)
+                        elif data_type == "number":
+                            
+                            data_min = 0
+                            if inner_prop_k == "minimum":
+                                data_min = inner_prop_val
+                                
+                            data_max = 9999
+                            if inner_prop_k == "maximum":
+                                data_max = inner_prop_val
+                                
+                            if inner_prop_k == "exclusiveMinimum":
+                                data_min = inner_prop_val
+                                
+                            if inner_prop_k == "exclusiveMaximum":
+                                data_max = inner_prop_val                                                                           
+                            
+                            data_val = fake.pyint(min_value=data_min, max_value=data_max)
+                    
+                    
+    if data_name == None:
+        ret_val = {}
+    else:            
+        ret_val = {data_name : data_val}
+        
+    return ret_val
     
 
 def gen_data_from_schema(schema: dict) -> str:
@@ -390,6 +495,8 @@ def gen_data_from_schema(schema: dict) -> str:
         str: Fake generated data based on the JSON Schema
     """
     
+    fake_data_json = {}
+
     # Validate before changes
     try:
         validate_schema(schema)
@@ -397,19 +504,59 @@ def gen_data_from_schema(schema: dict) -> str:
         raise Exception(err)  
     
     
-    schema_bene = resolve_inner_refs(schema)
+    schema_bene, choices_found_in_schema_dict = resolve_inner_refs(schema)
     
-    # Validate agaion after changes
+    # Validate again after changes
+    
+    schema_json = schema_bene.to_json()
+    schema_dict = json.loads(schema_json)
+    
     try:
-        validate_schema(schema_bene)
+        validate_schema(schema_dict)
     except Exception as err:
         raise Exception(err)    
-    
-    fake_json = {}
-    try:   
-        faker = JSF(schema_bene)
-        fake_json = faker.generate()    
-    except Exception as err:
-        raise Exception(err)
-    
-    return fake_json
+        
+    i = 0
+    lim = 10
+    while i < lim:
+          
+        try:   
+            faker = JSF(schema_dict)
+            fake_data_json = faker.generate()
+            i = lim 
+        except Exception as err:
+            
+            if i < lim:
+                i += 1
+                print("error attempting to gen fake data: ", err)
+                print(f"datga gen attempt, {i} trying again")
+            else:
+                raise Exception(err)
+     
+    fake_data_bene = benedict(fake_data_json, keypath_separator="/")
+    fake_data_bene.clean(strings=True, collections=True)
+            
+    if choices_found_in_schema_dict and len(choices_found_in_schema_dict) > 0:
+        
+        for choice_key in choices_found_in_schema_dict.copy():
+            
+            # Get choice data
+            choice_data = fake_data_bene.get(choice_key)
+
+            if choice_data != None:
+                
+                if len(choice_data) > 0:
+                    # Remove 'extra' choices, to fix a jsf data gen bug
+                
+                    # Get 1st choice option (sorry not very random)
+                    first_choice_opt_key = list(choice_data.keys())[0]
+                    first_choice_opt_data = choice_data[first_choice_opt_key]
+                    
+                    # Clear out all choice options
+                    for choice_opt_key in choice_data.copy():
+                        del choice_data[choice_opt_key]
+                        
+                    # Reset choice with 1st choice option only
+                    choice_data[first_choice_opt_key] = first_choice_opt_data
+
+    return fake_data_bene
