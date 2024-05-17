@@ -1,4 +1,5 @@
 import json
+from random import random
 import time
 from tracemalloc import start
 from benedict import benedict
@@ -488,11 +489,11 @@ def build_missing_data(data_schema: dict) -> benedict:
 def gen_fake_data(schema_dict: dict) -> json:
     
     i = 0
-    lim = 10
+    lim = 5
     while i < lim:
           
         try:   
-            time.sleep(1)
+            time.sleep(0.5)
             faker = JSF(schema_dict)
             # faker = await JSF(schema_dict)
             # yield faker              
@@ -539,16 +540,16 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
                 if len(choice_data) > 0:
                     # Remove 'extra' choices, to fix a jsf data gen bug
                 
-                    # Get 1st choice option (sorry not very random)
-                    first_choice_opt_key = list(choice_data.keys())[0]
-                    first_choice_opt_data = choice_data[first_choice_opt_key]
+                    # Get a randomized choice option
+                    select_choice_opt_key = list(choice_data.keys())[random(len(choice_data))]
+                    select_choice_opt_data = choice_data[select_choice_opt_key]
                     
                     # Clear out all choice options
                     for choice_opt_key in choice_data.copy():
                         del choice_data[choice_opt_key]
                         
                     # Reset choice with 1st choice option only
-                    choice_data[first_choice_opt_key] = first_choice_opt_data
+                    choice_data[select_choice_opt_key] = select_choice_opt_data
                     
     return fake_data_bene
     
