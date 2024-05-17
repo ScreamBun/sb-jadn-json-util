@@ -541,7 +541,7 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
                     # Remove 'extra' choices, to fix a jsf data gen bug
                 
                     # Get a randomized choice option
-                    select_choice_opt_key = list(choice_data.keys())[random(len(choice_data))]
+                    select_choice_opt_key = random.choice(list(choice_data.keys()))
                     select_choice_opt_data = choice_data[select_choice_opt_key]
                     
                     # Clear out all choice options
