@@ -1,4 +1,6 @@
 import json
+import time
+from tracemalloc import start
 from benedict import benedict
 from jsf import JSF
 from faker import Faker
@@ -482,48 +484,33 @@ def build_missing_data(data_schema: dict) -> benedict:
         ret_val = {data_name : data_val}
         
     return ret_val
-    
 
-def gen_data_from_schema(schema: dict) -> str:
-    """
-    Generates fake data based on the schema
-
-    Args:
-        schema (str): JSON Schema
-
-    Returns:
-        str: Fake generated data based on the JSON Schema
-    """
+def gen_fake_data(schema_dict: dict) -> json:
     
-    fake_data_json = {}
-
-    # Validate before changes
-    try:
-        validate_schema(schema)
-    except Exception as err:
-        raise Exception(err)  
-    
-    
-    schema_bene, choices_found_in_schema_dict = resolve_inner_refs(schema)
-    
-    # Validate again after changes
-    
-    schema_json = schema_bene.to_json()
-    schema_dict = json.loads(schema_json)
-    
-    try:
-        validate_schema(schema_dict)
-    except Exception as err:
-        raise Exception(err)    
-        
     i = 0
     lim = 10
     while i < lim:
           
         try:   
+            time.sleep(1)
             faker = JSF(schema_dict)
+            # faker = await JSF(schema_dict)
+            # yield faker              
+                
             fake_data_json = faker.generate()
-            i = lim 
+            # fake_data_json = await faker.generate()
+            # yield fake_data_json
+            
+            if not fake_data_json:
+                i += 1
+            else:
+                for value in fake_data_json.values():
+                    if not value:
+                        i += 1
+                    else:
+                        i = lim
+                        break                        
+                
         except Exception as err:
             
             if i < lim:
@@ -532,13 +519,17 @@ def gen_data_from_schema(schema: dict) -> str:
                 print(f"datga gen attempt, {i} trying again")
             else:
                 raise Exception(err)
-     
-    fake_data_bene = benedict(fake_data_json, keypath_separator="/")
+            
+    return fake_data_json 
+
+
+def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
+    fake_data_bene = benedict(fake_data, keypath_separator="/")
     fake_data_bene.clean(strings=True, collections=True)
             
-    if choices_found_in_schema_dict and len(choices_found_in_schema_dict) > 0:
+    if choices_found and len(choices_found) > 0:
         
-        for choice_key in choices_found_in_schema_dict.copy():
+        for choice_key in choices_found.copy():
             
             # Get choice data
             choice_data = fake_data_bene.get(choice_key)
@@ -558,5 +549,38 @@ def gen_data_from_schema(schema: dict) -> str:
                         
                     # Reset choice with 1st choice option only
                     choice_data[first_choice_opt_key] = first_choice_opt_data
-
+                    
     return fake_data_bene
+    
+
+def gen_data_from_schema(schema: dict) -> str:
+    """
+    Generates fake data based on the schema
+
+    Args:
+        schema (str): JSON Schema
+
+    Returns:
+        str: Fake generated data based on the JSON Schema
+    """
+
+    # Validate before changes
+    try:
+        validate_schema(schema)
+    except Exception as err:
+        raise Exception(err)  
+    
+    schema_bene, choices_found = resolve_inner_refs(schema)
+    
+    schema_json = schema_bene.to_json()
+    schema_dict = json.loads(schema_json)
+    
+    try:
+        validate_schema(schema_dict)
+    except Exception as err:
+        raise Exception(err)
+    
+    fake_data = gen_fake_data(schema_dict)
+    fake_data = cleanup_choices(fake_data, choices_found)
+
+    return fake_data

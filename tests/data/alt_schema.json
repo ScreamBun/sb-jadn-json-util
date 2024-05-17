@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://example.book_or_movie_open",
+  "$id": "http://example.book_or_movie_min_max_1",
   "$ref": "#/definitions/Book-Or-Movie",
   "type": "object",
   "additionalProperties": false,
@@ -27,11 +27,8 @@
       "title": "Book",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "author",
-        "content"
-      ],
-      "maxProperties": 100,
+      "minProperties": 1,
+      "maxProperties": 1,
       "properties": {
         "author": {
           "type": "string",
@@ -50,11 +47,8 @@
       "title": "Movie",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "director",
-        "content_link"
-      ],
-      "maxProperties": 100,
+      "minProperties": 1,
+      "maxProperties": 1,
       "properties": {
         "director": {
           "type": "string",
