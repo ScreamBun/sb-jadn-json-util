@@ -1,7 +1,8 @@
 import json
-from random import random
+from random import random, randrange
 import time
 from tracemalloc import start
+from xml.etree.ElementTree import tostring
 from benedict import benedict
 from jsf import JSF
 from faker import Faker
@@ -409,10 +410,10 @@ def resolve_inner_refs(schema: str | dict | benedict) -> {benedict, dict}:
     
     # TODO: Configurable limit and per type, hardcoded for arrays and 3 max items
     limit = 3
-    schmea_reserved_words_updated = replace_reserved_words(schema)
-    schmea_unique_items_updated = update_unique_items(schmea_reserved_words_updated)
-    schmea_patterns_adjusted = adjust_patterns(schmea_unique_items_updated)
-    schema_fixed_props = fix_root_ref(schmea_patterns_adjusted)
+    schema_reserved_words_updated = replace_reserved_words(schema)
+    schema_unique_items_updated = update_unique_items(schema_reserved_words_updated)
+    schema_patterns_adjusted = adjust_patterns(schema_unique_items_updated)
+    schema_fixed_props = fix_root_ref(schema_patterns_adjusted)
     schema_reqs_added = add_required_root_items(schema_fixed_props)
     schema_limited = limit_max_items(schema_reqs_added, limit)
     schema_encoding_fixed = find_fix_encoding(schema_limited)
@@ -487,28 +488,34 @@ def build_missing_data(data_schema: dict) -> benedict:
     return ret_val
 
 def gen_fake_data(schema_dict: dict) -> json:
+
+    print(schema_dict)
     
     i = 0
     lim = 5
     while i < lim:
           
         try:   
-            time.sleep(0.5)
+            time.sleep(1.0)
             faker = JSF(schema_dict)
             # faker = await JSF(schema_dict)
             # yield faker              
                 
             fake_data_json = faker.generate()
+            print(str(fake_data_json))
             # fake_data_json = await faker.generate()
             # yield fake_data_json
             
+            
             if not fake_data_json:
                 i += 1
+                print("data missing")
             else:
                 for value in fake_data_json.values():
                     if not value:
                         i += 1
                     else:
+                        print("value found")
                         i = lim
                         break                        
                 
@@ -517,7 +524,7 @@ def gen_fake_data(schema_dict: dict) -> json:
             if i < lim:
                 i += 1
                 print("error attempting to gen fake data: ", err)
-                print(f"datga gen attempt, {i} trying again")
+                print(f"data gen attempt {i}, trying again")
             else:
                 raise Exception(err)
             
@@ -541,8 +548,14 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
                     # Remove 'extra' choices, to fix a jsf data gen bug
                 
                     # Get a randomized choice option
-                    select_choice_opt_key = random.choice(list(choice_data.keys()))
-                    select_choice_opt_data = choice_data[select_choice_opt_key]
+                    choice_list = list(choice_data.keys())
+                    print(choice_list)
+                    randomized_key = randrange(0, len(choice_list))
+                    print(randomized_key)
+                    select_choice_opt_key = choice_list[randomized_key]
+                    print(choice_data)
+                    select_choice_opt_data = choice_data.get(select_choice_opt_key)
+                    print("selected choice option at key "+ str(select_choice_opt_key))
                     
                     # Clear out all choice options
                     for choice_opt_key in choice_data.copy():
@@ -583,5 +596,6 @@ def gen_data_from_schema(schema: dict) -> str:
     
     fake_data = gen_fake_data(schema_dict)
     fake_data = cleanup_choices(fake_data, choices_found)
+    print(fake_data)
 
     return fake_data
