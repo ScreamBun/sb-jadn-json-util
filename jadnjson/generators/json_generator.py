@@ -27,7 +27,7 @@ def find_choices(bene_schema: benedict) -> dict:
             max_prop_val = value.get('maxProperties')
             
             if min_prop_val == 1 and max_prop_val == 1:
-                print("choice found, capturing for later")
+                # print("choice found, capturing for later")
                 
                 if "definitions/" in k:
                    k = k.replace("definitions/", "")
@@ -37,7 +37,7 @@ def find_choices(bene_schema: benedict) -> dict:
                         
                 choices_found_dict[k] = value
             elif max_prop_val == 1:
-                print("choice found, capturing for later")
+                # print("choice found, capturing for later")
                 
                 if "definitions/" in k:
                    k = k.replace("definitions/", "")
@@ -489,7 +489,7 @@ def build_missing_data(data_schema: dict) -> benedict:
 
 def gen_fake_data(schema_dict: dict) -> json:
 
-    print(schema_dict)
+    # print(schema_dict)
     
     i = 0
     lim = 5
@@ -498,14 +498,17 @@ def gen_fake_data(schema_dict: dict) -> json:
         try:   
             time.sleep(1.0)
             faker = JSF(schema_dict)
+            
+            # Attempt at threading...
             # faker = await JSF(schema_dict)
             # yield faker              
                 
             fake_data_json = faker.generate()
-            print(str(fake_data_json))
+            # print(str(fake_data_json))
+            
+            # Attempt at threading...
             # fake_data_json = await faker.generate()
             # yield fake_data_json
-            
             
             if not fake_data_json:
                 i += 1
@@ -549,13 +552,13 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
                 
                     # Get a randomized choice option
                     choice_list = list(choice_data.keys())
-                    print(choice_list)
+                    # print(choice_list)
                     randomized_key = randrange(0, len(choice_list))
-                    print(randomized_key)
+                    # print(randomized_key)
                     select_choice_opt_key = choice_list[randomized_key]
-                    print(choice_data)
+                    # print(choice_data)
                     select_choice_opt_data = choice_data.get(select_choice_opt_key)
-                    print("selected choice option at key "+ str(select_choice_opt_key))
+                    # print("selected choice option at key "+ str(select_choice_opt_key))
                     
                     # Clear out all choice options
                     for choice_opt_key in choice_data.copy():
@@ -577,6 +580,8 @@ def gen_data_from_schema(schema: dict) -> str:
     Returns:
         str: Fake generated data based on the JSON Schema
     """
+    
+    print("gen_data_from_schema 05232024-1230")
 
     # Validate before changes
     try:
@@ -596,6 +601,6 @@ def gen_data_from_schema(schema: dict) -> str:
     
     fake_data = gen_fake_data(schema_dict)
     fake_data = cleanup_choices(fake_data, choices_found)
-    print(fake_data)
+    # print(fake_data)
 
     return fake_data
