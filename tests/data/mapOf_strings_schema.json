@@ -1,55 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://test/v1.0",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "mapof_name": {
-      "$ref": "#/definitions/MapOf-Name"
-    },
-    "arrayof_name": {
-      "$ref": "#/definitions/ArrayOf-Name"
-    },
-    "record_name": {
-      "$ref": "#/definitions/Record-Name"
-    }
-  },
+  "$ref": "#/definitions/MapOf-Name",
   "definitions": {
     "MapOf-Name": {
       "title": "MapOf Name",
       "type": "object",
       "additionalProperties": false,
-      "maxProperties": 100,
-      "items": {
-        "type": "object",
-        "String-Name-1": {
+      "minProperties": 1,
+      "maxProperties": 5,
+      "properties": {
+        "String-Name-2": {
           "$ref": "#/definitions/String-Name-1"
         },
-        "String-Name-2": {
+        "String-Name-1": {
           "$ref": "#/definitions/String-Name-2"
-        }
-      }
-    },
-    "ArrayOf-Name": {
-      "title": "ArrayOf Name",
-      "type": "array",
-      "maxItems": 100,
-      "items": {
-        "$ref": "#/definitions/String-Name-3"
-      }
-    },
-    "Record-Name": {
-      "title": "Record Name",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "field_value_1"
-      ],
-      "maxProperties": 100,
-      "properties": {
-        "field_value_1": {
-          "$ref": "#/definitions/String-Name-4",
-          "description": ""
         }
       }
     },
@@ -63,15 +28,25 @@
       "type": "string",
       "maxLength": 255
     },
-    "String-Name-3": {
-      "title": "String Name 3",
-      "type": "string",
-      "maxLength": 255
-    },
-    "String-Name-4": {
-      "title": "String Name 4",
-      "type": "string",
-      "maxLength": 255
+    "Map-Test": {
+      "title": "Map Test",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_value_1",
+        "field_value_2"
+      ],
+      "maxProperties": 100,
+      "properties": {
+        "field_value_1": {
+          "$ref": "#/definitions/String-Name-1",
+          "description": ""
+        },
+        "field_value_2": {
+          "$ref": "#/definitions/String-Name-2",
+          "description": ""
+        }
+      }
     }
   }
 }

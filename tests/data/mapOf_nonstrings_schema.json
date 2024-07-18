@@ -1,27 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://test/v1.0",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "mapof_name": {
-      "$ref": "#/definitions/MapOf-Name"
-    },
-    "arrayof_name": {
-      "$ref": "#/definitions/ArrayOf-Name"
-    },
-    "record_name": {
-      "$ref": "#/definitions/Record-Name"
-    }
-  },
+  "$ref": "#/definitions/MapOf-Strings",
   "definitions": {
-    "MapOf-Name": {
-      "title": "MapOf Name",
+    "MapOf-Strings": {
+      "title": "MapOf Strings",
       "type": "object",
       "additionalProperties": false,
-      "maxProperties": 100,
-      "items": {
-        "type": "object",
+      "minProperties": 1,
+      "maxProperties": 5,
+      "properties": {
         "String-Name-1": {
           "$ref": "#/definitions/String-Name-1"
         },
@@ -30,48 +18,45 @@
         }
       }
     },
-    "ArrayOf-Name": {
-      "title": "ArrayOf Name",
+    "MapOf-Ints": {
+      "title": "MapOf Ints",
       "type": "array",
-      "maxItems": 100,
-      "items": {
-        "$ref": "#/definitions/String-Name-3"
-      }
-    },
-    "Record-Name": {
-      "title": "Record Name",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "field_value_1"
-      ],
-      "maxProperties": 100,
-      "properties": {
-        "field_value_1": {
-          "$ref": "#/definitions/String-Name-4",
-          "description": ""
+      "additionalItems": false,
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 5,
+      "items": [
+        {
+          "Integer-Name-1": {
+            "$ref": "#/definitions/Integer-Name-1"
+          }
+        },
+        {
+          "Integer-Name-2": {
+            "$ref": "#/definitions/Integer-Name-2"
+          }
         }
-      }
+      ]
     },
     "String-Name-1": {
       "title": "String Name 1",
       "type": "string",
+      "description": "test3",
       "maxLength": 255
     },
     "String-Name-2": {
       "title": "String Name 2",
       "type": "string",
+      "description": "test4",
       "maxLength": 255
     },
-    "String-Name-3": {
-      "title": "String Name 3",
-      "type": "string",
-      "maxLength": 255
+    "Integer-Name-1": {
+      "title": "Integer Name 1",
+      "type": "integer"
     },
-    "String-Name-4": {
-      "title": "String Name 4",
-      "type": "string",
-      "maxLength": 255
+    "Integer-Name-2": {
+      "title": "Integer Name 2",
+      "type": "integer"
     }
   }
 }
