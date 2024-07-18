@@ -491,12 +491,14 @@ def gen_fake_data(schema_dict: dict) -> json:
 
     # print(schema_dict)
     
+    fake_data_json = {}
+    
     i = 0
-    lim = 5
+    lim = 10
     while i < lim:
           
         try:   
-            time.sleep(1.0)
+            # time.sleep(2.0)
             faker = JSF(schema_dict)
             
             # Attempt at threading...
@@ -594,6 +596,7 @@ def gen_data_from_schema(schema: dict) -> str:
     schema_json = schema_bene.to_json()
     schema_dict = json.loads(schema_json)
     
+    # Validate after changes
     try:
         validate_schema(schema_dict)
     except Exception as err:

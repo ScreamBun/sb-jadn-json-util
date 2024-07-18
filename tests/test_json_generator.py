@@ -7,7 +7,7 @@ from jadnjson.generators.json_generator import gen_data_from_schema, resolve_inn
 from jadnjson.utils.general_utils import get_file, write_to_file
 
 
-class Generators(TestCase):
+class Test_Generators(unittest.TestCase):
   
     faker_schema = {}
     sm_schema = {}
