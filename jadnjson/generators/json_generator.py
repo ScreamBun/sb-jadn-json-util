@@ -14,6 +14,12 @@ from jadnjson.utils.general_utils import get_keys, get_last_occurance, remove_ch
 from jadnjson.validators.schema_validator import validate_schema
 
 
+class ReturnVal: 
+    def __init__(self): 
+        self.gen_data = None
+        self.err_msg = None
+
+
 def find_choices(bene_schema: benedict) -> dict:
     choices_found_dict = {}
     keys = bene_schema.keypaths(True)
@@ -572,7 +578,7 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
     return fake_data_bene
     
 
-def gen_data_from_schema(schema: dict) -> str:
+def gen_data_from_schema(schema: dict) -> ReturnVal:
     """
     Generates fake data based on the schema
 
@@ -582,28 +588,31 @@ def gen_data_from_schema(schema: dict) -> str:
     Returns:
         str: Fake generated data based on the JSON Schema
     """
-    
-    print("gen_data_from_schema 05232024-1230")
+    ret_val = ReturnVal()
 
     # Validate before changes
     try:
         validate_schema(schema)
     except Exception as err:
-        raise Exception(err)  
+        ret_val.err_msg = err
+        return ret_val
+        # raise Exception(err) 
     
     schema_bene, choices_found = resolve_inner_refs(schema)
     
     schema_json = schema_bene.to_json()
     schema_dict = json.loads(schema_json)
     
-    # Validate after changes
+    # Validate after adjustments for 3rd party acceptance
     try:
         validate_schema(schema_dict)
     except Exception as err:
-        raise Exception(err)
+        ret_val.err_msg = err
+        return ret_val
+        # raise Exception(err)
     
     fake_data = gen_fake_data(schema_dict)
     fake_data = cleanup_choices(fake_data, choices_found)
-    # print(fake_data)
+    ret_val.gen_data = fake_data
 
-    return fake_data
+    return ret_val
