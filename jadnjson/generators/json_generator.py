@@ -1,6 +1,5 @@
 import json
-from random import random, randrange
-import time
+from random import randrange
 from tracemalloc import start
 from xml.etree.ElementTree import tostring
 from benedict import benedict
