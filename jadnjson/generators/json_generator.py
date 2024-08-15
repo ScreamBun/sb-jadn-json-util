@@ -1,5 +1,6 @@
 import json
 from random import randrange
+import time
 from tracemalloc import start
 from xml.etree.ElementTree import tostring
 from benedict import benedict
@@ -499,7 +500,7 @@ def gen_fake_data(schema_dict: dict) -> json:
     fake_data_json = {}
     
     i = 0
-    lim = 10
+    lim = 6
     while i < lim:
           
         try:   
@@ -519,11 +520,15 @@ def gen_fake_data(schema_dict: dict) -> json:
             
             if not fake_data_json:
                 i += 1
+                time_to_wait = i * .3
+                time.sleep(time_to_wait)                
                 print("data missing")
             else:
                 for value in fake_data_json.values():
                     if not value:
                         i += 1
+                        time_to_wait = i * .3
+                        time.sleep(time_to_wait)
                     else:
                         print("value found")
                         i = lim
@@ -535,6 +540,8 @@ def gen_fake_data(schema_dict: dict) -> json:
                 i += 1
                 print("error attempting to gen fake data: ", err)
                 print(f"data gen attempt {i}, trying again")
+                time_to_wait = i * .3
+                time.sleep(time_to_wait)           
             else:
                 raise Exception(err)
             
