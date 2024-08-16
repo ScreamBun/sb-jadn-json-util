@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://oasis-open.org/openc2/oc2ls/v1.0.1",
   "title": "Language schema with errata",
-  "version": "0",
+  "version": "1",
   "description": "OpenC2 LS version 1.0 + errata",
   "type": "object",
   "additionalProperties": false,
@@ -263,73 +263,24 @@
     },
     "Action-Targets": {
       "title": "Action Targets",
-      "type": "object",
+      "type": "array",
       "description": "Map of each action supported by this actuator to the list of targets applicable to that action",
-      "additionalProperties": false,
-      "minProperties": 1,
-      "maxProperties": 100,
-      "properties": {
-        "scan": {
-          "$ref": "#/definitions/Targets"
+      "additionalItems": false,
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 100,
+      "items": [
+        {
+          "Targets": {
+            "$ref": "#/definitions/Action"
+          }
         },
-        "locate": {
-          "$ref": "#/definitions/Targets"
-        },
-        "query": {
-          "$ref": "#/definitions/Targets"
-        },
-        "deny": {
-          "$ref": "#/definitions/Targets"
-        },
-        "contain": {
-          "$ref": "#/definitions/Targets"
-        },
-        "allow": {
-          "$ref": "#/definitions/Targets"
-        },
-        "start": {
-          "$ref": "#/definitions/Targets"
-        },
-        "stop": {
-          "$ref": "#/definitions/Targets"
-        },
-        "restart": {
-          "$ref": "#/definitions/Targets"
-        },
-        "cancel": {
-          "$ref": "#/definitions/Targets"
-        },
-        "set": {
-          "$ref": "#/definitions/Targets"
-        },
-        "update": {
-          "$ref": "#/definitions/Targets"
-        },
-        "redirect": {
-          "$ref": "#/definitions/Targets"
-        },
-        "create": {
-          "$ref": "#/definitions/Targets"
-        },
-        "delete": {
-          "$ref": "#/definitions/Targets"
-        },
-        "detonate": {
-          "$ref": "#/definitions/Targets"
-        },
-        "restore": {
-          "$ref": "#/definitions/Targets"
-        },
-        "copy": {
-          "$ref": "#/definitions/Targets"
-        },
-        "investigate": {
-          "$ref": "#/definitions/Targets"
-        },
-        "remediate": {
-          "$ref": "#/definitions/Targets"
+        {
+          "Action": {
+            "$ref": "#/definitions/Targets"
+          }
         }
-      }
+      ]
     },
     "Targets": {
       "title": "Targets",

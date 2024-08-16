@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://test/v1.0",
+  "$ref": "#/definitions/Action-Targets",
+  "definitions": {
+    "Action-Targets": {
+      "title": "Action Targets",
+      "type": "array",
+      "description": "Map of each action supported by this actuator to the list of targets applicable to that action",
+      "additionalItems": false,
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "properties": {
+          "Action": {
+            "$ref": "#/definitions/Action"
+          },
+          "Targets": {
+            "$ref": "#/definitions/Targets"
+          }
+        }
+      }
+    },
+    "Targets": {
+      "title": "Targets",
+      "type": "array",
+      "description": "List of JSON Pointers to Target types",
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "enum": [
+          "artifact",
+          "command"
+        ]
+      }
+    },
+    "Target": {
+      "title": "Target",
+      "type": "object",
+      "description": "OpenC2 Target datatypes",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "artifact": {
+          "type": "string",
+          "description": "test string",
+          "maxLength": 255
+        },
+        "command": {
+          "type": "string",
+          "description": "A reference to a previously issued Command.",
+          "maxLength": 255
+        }
+      }
+    },
+    "Action": {
+      "title": "Action",
+      "type": "string",
+      "enum": [
+        "scan",
+        "locate",
+        "query",
+        "deny",
+        "contain",
+        "allow",
+        "start",
+        "stop",
+        "restart",
+        "cancel",
+        "set",
+        "update",
+        "redirect",
+        "create",
+        "delete",
+        "detonate",
+        "restore",
+        "copy",
+        "investigate",
+        "remediate"
+      ]
+    },
+    "String-Name": {
+      "title": "String Name",
+      "type": "string",
+      "maxLength": 255
+    }
+  }
+}

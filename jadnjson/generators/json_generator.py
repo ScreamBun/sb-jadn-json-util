@@ -165,7 +165,7 @@ def find_update_refs(schema: dict | benedict) -> benedict:
         benedict: {ref, pointer_to_value}
     """
     
-    keys_list = schema.keypaths(indexes=False)
+    keys_list = schema.keypaths(indexes=True)
     ref_key_list = [i for i in keys_list if i.endswith(DOL_REF)]
     for ref_key in ref_key_list:
         pointer = schema.get(ref_key)
@@ -183,8 +183,9 @@ def find_update_refs(schema: dict | benedict) -> benedict:
                 resolved_data = jsonpointer.JsonPointer(pointer_updated).resolve(schema)
                 schema[ref_key_updated] = resolved_data
                 
-    keys_list_recheck = schema.keypaths(indexes=False)
-    ref_key_list = [i for i in keys_list_recheck if DOL_REF in i]
+    keys_list_recheck = schema.keypaths(indexes=True)
+    # ref_key_list = [i for i in keys_list_recheck if DOL_REF in i]
+    ref_key_list = [i for i in keys_list_recheck if i.endswith(DOL_REF)]
     if ref_key_list:
         find_update_refs(schema)
                                      
@@ -423,8 +424,7 @@ def resolve_inner_refs(schema: str | dict | benedict) -> {benedict, dict}:
     schema_reqs_added = add_required_root_items(schema_fixed_props)
     schema_limited = limit_max_items(schema_reqs_added, limit)
     schema_encoding_fixed = find_fix_encoding(schema_limited)
-    resolved_schema = find_update_refs(schema_encoding_fixed) 
-    
+    resolved_schema = find_update_refs(schema_encoding_fixed)
     choices_found_dict = find_choices(resolved_schema)   
     
     return resolved_schema, choices_found_dict
