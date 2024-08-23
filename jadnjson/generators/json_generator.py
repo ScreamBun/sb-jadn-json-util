@@ -1,15 +1,11 @@
 import json
 from random import randrange
 import time
-from tracemalloc import start
-from xml.etree.ElementTree import tostring
 from benedict import benedict
 from jsf import JSF
-from faker import Faker
 import jsonpointer
 
 from jadnjson.constants import generator_constants
-from jadnjson.constants.generator_constants import ADDITIONAL_PROPS, BASE_16, BASE_32, BASE_64, CONTENT_ENCODING, DATETIME_TIMEZONE_ORIG, DATETIME_TIMEZONE_REVISED, DEFINITIONS, DOL_REF, MAX_ITEMS, MIN_ITEMS, NCNAME_ORIG, NCNAME_REVISED, OBJECT, POUND, POUND_SLASH, PROPERTIES, REQUIRED, RES_WORD_TYPE, RES_WORD_TYPE_ALT, SLASH_DOL_REF, TYPE
 from jadnjson.utils.general_utils import get_keys, get_last_occurance, remove_chars
 from jadnjson.validators.schema_validator import validate_schema
 
@@ -33,7 +29,6 @@ def find_choices(bene_schema: benedict) -> dict:
             max_prop_val = value.get('maxProperties')
             
             if min_prop_val == 1 and max_prop_val == 1:
-                # print("choice found, capturing for later")
                 
                 if "definitions/" in k:
                    k = k.replace("definitions/", "")
@@ -43,7 +38,6 @@ def find_choices(bene_schema: benedict) -> dict:
                         
                 choices_found_dict[k] = value
             elif max_prop_val == 1:
-                # print("choice found, capturing for later")
                 
                 if "definitions/" in k:
                    k = k.replace("definitions/", "")
@@ -57,62 +51,44 @@ def find_choices(bene_schema: benedict) -> dict:
     return choices_found_dict
 
 
-def find_fix_encoding(data: benedict) -> benedict:
+def find_fix_encoding(key: str, schema: benedict) -> benedict:
     """
     Some JADN specific encoding does not get converted to a JSON Schema equivalent during JSON Schema translation. 
     This logic attempts to map JADN encoding to JSON Schema valid encoding.  Eventually this needs to be fixed 
     in the JADN to JSON Schema Translation logic.  
-
-    Args:
-        data (benedict): JSON Schema
-
-    Returns:
-        benedict: Updated JSON Schema
     """
-    
-    keys_list = data.keypaths(indexes=True)
-    for key in keys_list:
         
-        value = data.get(key)
-        if isinstance(value, benedict):
-            find_fix_encoding(value)            
-            
-        elif CONTENT_ENCODING in key:
-            encoding_type = data.get(key)
-            new_encoding_type = None
-            
-            match encoding_type:
-                case generator_constants.BASE_64_URL:
-                    new_encoding_type = BASE_64
-                case generator_constants.BASE64:
-                    new_encoding_type = BASE_64
-                case generator_constants.BASE_64:
-                    new_encoding_type = BASE_64                    
-                case generator_constants.BASE32:
-                    new_encoding_type = BASE_32
-                case generator_constants.BASE16:
-                    new_encoding_type = BASE_16
-                case _:
-                    print("encoding type not known")
-                    
-            if new_encoding_type:
-                data[key] = new_encoding_type
+    encoding_type = schema.get(key)
+    if isinstance(encoding_type, benedict):       
+        return schema
+        
+    elif generator_constants.CONTENT_ENCODING in key:
+        new_encoding_type = None
+        
+        match encoding_type:
+            case generator_constants.BASE_64_URL:
+                new_encoding_type = generator_constants.BASE_64
+            case generator_constants.BASE64:
+                new_encoding_type = generator_constants.BASE_64
+            case generator_constants.BASE_64:
+                new_encoding_type = generator_constants.BASE_64                    
+            case generator_constants.BASE32:
+                new_encoding_type = generator_constants.BASE_32
+            case generator_constants.BASE16:
+                new_encoding_type = generator_constants.BASE_16
+            case _:
+                print(f"encoding type not known {encoding_type}")
+                
+        if new_encoding_type:
+            schema[key] = new_encoding_type
     
-    return data
+    return schema
 
 
 def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:  
     """
     Attempts to detect recursion within inner ref data.  The logic looks at parent keys,
     child keys and child ref keys.  More detection maybe needed, or renaming...
-
-    Args:
-        data (benedict): JSON Schema
-        key (str): key (ref)
-        pointer (str): path to the ref data
-
-    Returns:
-        bool: returns true if recursion found
     """
         
     recursion_found = False        
@@ -127,8 +103,8 @@ def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:
     elif not isinstance(pointer_data, benedict):
         print('not isinstance(pointer_data, benedict)')        
     else:
-        pointer_keys = pointer_data.keypaths(indexes=False)
-        inner_refs = [i for i in pointer_keys if DOL_REF in i]
+        pointer_keys = pointer_data.keypaths(indexes=True)
+        inner_refs = [i for i in pointer_keys if generator_constants.DOL_REF in i]
         
         parent_keys = key.split('/')
         parent_keys = list(map(str.lower, parent_keys))
@@ -152,27 +128,21 @@ def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:
     return recursion_found
 
 
-def find_update_refs(schema: dict | benedict) -> benedict:
+def update_inner_refs(schema: dict | benedict) -> benedict:
     """
     Searches the json schema for inner $refs and updates them with their actual values. 
     Attempts to detect recursion in refs.  If recursion is found, then that item is removed
     from the JSON Schema used for data generation.  Otherwise the data generation hits an endless loop.  
-
-    Args:
-        data (dict | benedict): json data to be searched
-
-    Returns:
-        benedict: {ref, pointer_to_value}
     """
     
     keys_list = schema.keypaths(indexes=True)
-    ref_key_list = [i for i in keys_list if i.endswith(DOL_REF)]
+    ref_key_list = [i for i in keys_list if i.endswith(generator_constants.DOL_REF)]
     for ref_key in ref_key_list:
         pointer = schema.get(ref_key)
         
-        if isinstance(pointer, str) and POUND in pointer:
-            pointer_updated = pointer.replace(POUND, "")                
-            ref_key_updated = ref_key.replace(SLASH_DOL_REF, "")
+        if isinstance(pointer, str) and generator_constants.POUND in pointer:
+            pointer_updated = pointer.replace(generator_constants.POUND, "")                
+            ref_key_updated = ref_key.replace(generator_constants.SLASH_DOL_REF, "")
             
             recursion_found = is_recursion_found(schema, ref_key_updated, pointer_updated)
             
@@ -182,43 +152,40 @@ def find_update_refs(schema: dict | benedict) -> benedict:
             else:
                 resolved_data = jsonpointer.JsonPointer(pointer_updated).resolve(schema)
                 schema[ref_key_updated] = resolved_data
-                
-    keys_list_recheck = schema.keypaths(indexes=True)
-    # ref_key_list = [i for i in keys_list_recheck if DOL_REF in i]
-    ref_key_list = [i for i in keys_list_recheck if i.endswith(DOL_REF)]
-    if ref_key_list:
-        find_update_refs(schema)
                                      
     return schema
 
 
-def limit_max_items(schema: benedict, limit: int = 3) -> benedict:
+def limit_max_items(key: str, schema: benedict, max_items: int = 3, max_length: int = 25) -> benedict:
     """
     Searches for type Array and then, adds a limit (default 3) to help 
     reduce the amount of mock data generated.  If nothing is provided then
     the data generated has no limit and takes awhile to generate data. 
-
-    Args:
-        schema (benedict): JSON Schema
-        limit (int): array items limit, defaulted to 3
-
-    Returns:
-        benedict: Updated JSON Schema with limits added
     """
-    
-    max_items_key_list = get_keys(schema, False, MAX_ITEMS)
-    for max_item_key in max_items_key_list:
-        max_val = schema.get(max_item_key)
-        if max_val > limit:
-            schema[max_item_key] = limit
-            print("maxItems updated, was ", max_val)
+        
+    if key.endswith(generator_constants.MAX_ITEMS):          
+        max_val = schema.get(key)      
+        if max_val > max_items:
+            schema[key] = max_items
+            print(f"{key} maxItems updated, {max_val} => {max_items}")
             
-    min_items_key_list = get_keys(schema, False, MIN_ITEMS)
-    for min_item_key in min_items_key_list:
-        min_val = schema.get(min_item_key)
-        if min_val > limit:
-            schema[min_item_key] = limit
-            print("minItems updated, was ", min_val)
+    if key.endswith(generator_constants.MAX_LENGTH):          
+        max_val = schema.get(key)
+        if max_val > max_length:
+            schema[key] = max_length
+            print(f"{key} maxLength updated, {max_val} => {max_length}")            
+    
+    if key.endswith(generator_constants.MIN_ITEMS):        
+        min_val = schema.get(key)
+        if min_val > max_items:
+            schema[key] = max_items
+            print(f"{key} minItems updated, was {max_val} => {max_items}")
+            
+    if key.endswith(generator_constants.MIN_LENGTH):        
+        min_val = schema.get(key)
+        if min_val > max_length:
+            schema[key] = max_length
+            print(f"{key} minLength updated, was {max_val} => {max_length}")         
     
     return schema
 
@@ -226,18 +193,12 @@ def add_required_root_items(schema: benedict) -> benedict:
     """
     Adds a required item to root if one does not exist.  Otherwise the 
     data generator may return nothing. 
-
-    Args:
-        schema (benedict): JSON Schema
-
-    Returns:
-        benedict: returns an updated JSON Schema with a required item
     """
 
-    if not schema.get(REQUIRED):
+    if not schema.get(generator_constants.REQUIRED):
 
-        properties = schema.get(PROPERTIES)
-        definitions = schema.get(DEFINITIONS)
+        properties = schema.get(generator_constants.PROPERTIES)
+        definitions = schema.get(generator_constants.DEFINITIONS)
         reqs = []
         
         if properties:
@@ -247,17 +208,17 @@ def add_required_root_items(schema: benedict) -> benedict:
                 if "/" not in prop:
                     reqs.append(prop)         
             
-            required = schema.get(REQUIRED)
+            required = schema.get(generator_constants.REQUIRED)
             if not required:
-                schema[REQUIRED] = reqs
+                schema[generator_constants.REQUIRED] = reqs
                 
         elif definitions:
             defi = definitions.keypaths(indexes=False)[0]
             reqs.append(defi)              
             
-            required = schema.get(REQUIRED)
+            required = schema.get(generator_constants.REQUIRED)
             if not required:
-               schema[REQUIRED] = reqs        
+               schema[generator_constants.REQUIRED] = reqs        
             
                 
     return schema
@@ -268,145 +229,131 @@ def fix_root_ref(schema: benedict) -> benedict:
     Some JSON Schemas contain a single root level $ref, no properties and definitions.
     The data generator has trouble with these, so to be consistant, this function
     creates the missing properties object based on the single root $ref.
-
-    Args:
-        schema (benedict): JSON Schema
-
-    Returns:
-        benedict: JSON Schema updated to contain a properties object
     """
     
-    root_ref = schema.get(DOL_REF)
-    properties = schema.get(PROPERTIES)
-    type = schema.get(TYPE)
-    additionalProperties = schema.get(ADDITIONAL_PROPS)
+    root_ref = schema.get(generator_constants.DOL_REF)
+    properties = schema.get(generator_constants.PROPERTIES)
+    type = schema.get(generator_constants.TYPE)
+    additionalProperties = schema.get(generator_constants.ADDITIONAL_PROPS)
+    
+    # May need to move to its own function and update url based on draft version
+    schema[generator_constants.SCHEMA_KEY] = generator_constants.SCHEMA_URL
      
     if root_ref and not properties:
         root_name = get_last_occurance(root_ref, "/", False)
-        new_props_path = PROPERTIES + "/" + root_name + "/" + DOL_REF
+        new_props_path = generator_constants.PROPERTIES + "/" + root_name + "/" + generator_constants.DOL_REF
         
         schema[new_props_path] = root_ref
-        del schema[DOL_REF]
+        del schema[generator_constants.DOL_REF]
 
         if not type:
-            schema[TYPE] = OBJECT
+            schema[generator_constants.TYPE] = generator_constants.OBJECT
             
         if not additionalProperties:
-            schema[ADDITIONAL_PROPS] = False
+            schema[generator_constants.ADDITIONAL_PROPS] = False
     
     return schema
 
-def replace_reserved_words(schema: benedict) -> benedict:
+def replace_reserved_words(key: str, schema: benedict) -> benedict:
     """
     Looks for revered words and sets them to an alternate name.
-
-    Args:
-        schema (benedict): JSON Schema
-
-    Returns:
-        benedict: JSON Schema with updated reserve words.
     """
 
-    res_type_key_list = get_keys(schema, False, RES_WORD_TYPE)
+    # Update Keys
     removed_keys = []
-    
-    # Update keys
-    for type_key in res_type_key_list:
-        copy_obj = schema.get(type_key)
-        copy_obj_key = type_key.replace(RES_WORD_TYPE, RES_WORD_TYPE_ALT) 
+    if get_last_occurance(key, '/') == generator_constants.RES_WORD_TYPE:
+        copy_obj = schema.get(key)
+        copy_obj_key = key.replace(generator_constants.RES_WORD_TYPE, generator_constants.RES_WORD_TYPE_ALT)
         schema[copy_obj_key] = copy_obj
-        del schema[type_key]
-        removed_keys.append(type_key)
-        print("Reserved word found in keys and updated", type_key) 
+        del schema[key]
+        removed_keys.append(key)
+        print(f"{key} Reserved word replaced {generator_constants.RES_WORD_TYPE} => {generator_constants.RES_WORD_TYPE_ALT}")
         
-    # Update ref pointers
-    ref_key_list = get_keys(schema, False, DOL_REF)
-    for ref_key in ref_key_list:
-        pointer = schema.get(ref_key)
-        if isinstance(pointer, str):
-            
-            pointer_filtered = pointer.replace(POUND_SLASH, "") 
-            if pointer_filtered in removed_keys:
+        
+    if removed_keys:
+        # Update ref pointers
+        ref_key_list = get_keys(schema, False, generator_constants.DOL_REF)
+        for ref_key in ref_key_list:
+            pointer = schema.get(ref_key)
+            if isinstance(pointer, str):
                 
-                pointer_updated = pointer.replace(RES_WORD_TYPE, RES_WORD_TYPE_ALT) 
-                schema[ref_key] = pointer_updated
-                print("Reserved word found in ref and updated", pointer)  
-            
-    # Update required fields
-    req_key_list = get_keys(schema, False, REQUIRED)
-    for req_key in req_key_list:
-        req_array = schema.get(req_key)
-        if RES_WORD_TYPE in req_array:
-            
-            for index, req in enumerate(req_array):
-                if req == RES_WORD_TYPE:
-                    req_array[index] = RES_WORD_TYPE_ALT
-                    schema[req_key] = req_array           
-                    print("Reserved word found in required fields and updated", req_key) 
-    
+                pointer_filtered = pointer.replace(generator_constants.POUND_SLASH, "") 
+                if pointer_filtered in removed_keys:
+                    
+                    pointer_updated = pointer.replace(generator_constants.RES_WORD_TYPE, generator_constants.RES_WORD_TYPE_ALT) 
+                    schema[ref_key] = pointer_updated
+                    print("Reserved word found in ref and updated", pointer)  
+                
+                
+        # Update required fields
+        req_key_list = get_keys(schema, False, generator_constants.REQUIRED)
+        for req_key in req_key_list:
+            req_array = schema.get(req_key)
+            if generator_constants.RES_WORD_TYPE in req_array:
+                
+                for index, req in enumerate(req_array):
+                    if req == generator_constants.RES_WORD_TYPE:
+                        req_array[index] = generator_constants.RES_WORD_TYPE_ALT
+                        schema[req_key] = req_array           
+                        print("Reserved word found in required fields and updated", req_key)         
+        
     return schema
 
 
-def update_unique_items(schema: benedict, set_to: bool = False) -> benedict:
+def update_unique_items(key: str, schema: benedict, set_to: bool = False) -> benedict:
     """
     Looks for uniqueItems and updates them to the set_to bool provided. 
-
-    Args:
-        schema (benedict): JSON Schema
-
-    Returns:
-        benedict: JSON Schema with uniqueItems updated
     """
-
-    keys_list = schema.keypaths(indexes=False)
-    unique_items_key_list = [i for i in keys_list if i.endswith("uniqueItems")]
     
-    for unique_items_key in unique_items_key_list:
-        schema[unique_items_key] = set_to
+    if key.endswith("uniqueItems"):
+        schema[key] = set_to
     
     return schema
 
 
-def adjust_patterns(schema: benedict) -> benedict:
+def adjust_patterns(key: str, schema: benedict) -> benedict:
     """
     Looks for regex patterns that don't jive with the data generator and 
     updates them with comparable patterns that the data generator is happy with. 
-
-    Args:
-        schema (benedict): JSON Schema
-
-    Returns:
-        benedict: JSON Schema with data gen safe patterns
     """
-
-    keys_list = schema.keypaths(indexes=False)
-    pattern_key_list = [i for i in keys_list if i.endswith("pattern")]
     
-    for pattern_key in pattern_key_list:
-        pattern = schema.get(pattern_key)    
+    if key.endswith("pattern"):  
+       
+        pattern = schema.get(key)    
         
-        if pattern == DATETIME_TIMEZONE_ORIG:
-            schema[pattern_key] = DATETIME_TIMEZONE_REVISED
-            print("* datetime timezone pattern revised")
+        if pattern == generator_constants.DATETIME_TIMEZONE_ORIG:
+            schema[key] = generator_constants.DATETIME_TIMEZONE_REVISED
+            print(f"{key} pattern revised {pattern} => {generator_constants.DATETIME_TIMEZONE_REVISED}")
             
-        if pattern == NCNAME_ORIG:
-            schema[pattern_key] = NCNAME_REVISED
-            print("* ncname pattern revised")
+        if pattern == generator_constants.NCNAME_ORIG:
+            schema[key] = generator_constants.NCNAME_REVISED
+            print(f"{key} pattern revised {pattern} => {generator_constants.NCNAME_REVISED}")
     
     return schema
 
+def determine_max_items(num_of_keys: int) -> int:
+    max = 1
+    
+    if num_of_keys < 100000 and num_of_keys >= 50000:
+        max = 2
+    elif num_of_keys < 50000 and num_of_keys >= 10000:
+        max = 4
+    elif num_of_keys < 10000 and num_of_keys >= 5000:
+        max = 6
+    elif num_of_keys < 5000 and num_of_keys >= 1000:
+        max = 8
+    elif num_of_keys < 1000 and num_of_keys >= 500:
+        max = 10
+    elif num_of_keys < 500:
+        max = 12
+    
+    return max
 
-def resolve_inner_refs(schema: str | dict | benedict) -> {benedict, dict}:
+
+def cleanup_schema_for_data_gen(schema: str | dict | benedict) -> {benedict, dict}:
     """
     Searches the json schema for inner refs ($ref) and replaces them with their actual values.  
     In other words, resovling the references.  Attempts to detect recursion and skips it if found.
-
-    Args:
-        schema (str| dict | benedict): JSON Scheam to be searched for inner $refs. 
-        Will convert a str to JSON and JSON to a Benedict, if given those types.
-
-    Returns:
-        benedict: An updated JSON Schema with its referenences resolved.
     """
     
     if isinstance(schema, str):
@@ -415,87 +362,48 @@ def resolve_inner_refs(schema: str | dict | benedict) -> {benedict, dict}:
     if isinstance(schema, dict):
         schema = benedict(schema, keypath_separator="/")
     
-    # TODO: Configurable limit and per type, hardcoded for arrays and 3 max items
-    limit = 3
-    schema_reserved_words_updated = replace_reserved_words(schema)
-    schema_unique_items_updated = update_unique_items(schema_reserved_words_updated)
-    schema_patterns_adjusted = adjust_patterns(schema_unique_items_updated)
-    schema_fixed_props = fix_root_ref(schema_patterns_adjusted)
-    schema_reqs_added = add_required_root_items(schema_fixed_props)
-    schema_limited = limit_max_items(schema_reqs_added, limit)
-    schema_encoding_fixed = find_fix_encoding(schema_limited)
-    resolved_schema = find_update_refs(schema_encoding_fixed)
-    choices_found_dict = find_choices(resolved_schema)   
+    fix_root_ref(schema)
+    add_required_root_items(schema)
+    update_inner_refs(schema)
     
-    return resolved_schema, choices_found_dict
-
-
-def get_all_keys(d):
-    for key, value in d.items():
-        yield key
-        if isinstance(value, dict):
-            yield from get_all_keys(value)
-        else:
-            if isinstance(value, str) and "base64url" in value:
-                print(key)
+    keys_list = schema.keypaths(indexes=False)
+    num_of_keys = len(keys_list)
+    print(f'Number of keys to process: {str(num_of_keys)}')
+    proposed_max_items = determine_max_items(num_of_keys)
+    print(f'Proposed max items: {str(proposed_max_items)}')
     
+    for key in keys_list:
+        print(f'{key}')
+        
+        if key.startswith("definitions/"):
                 
-def build_missing_data(data_schema: dict) -> benedict:
-    fake = Faker()
-    obj_name = None
-    data_name = None
-    data_val = None
+            val = schema.get(key) 
+            if key is None:
+                print(f"NoneType found!!! {key}")
+            elif val is None:
+                print(f"NoneType val found!!! {key}")
+            else:
+                try:
+                    # TODO: Temporarily disbled, poor peroforance with larger schemas 
+                    # replace_reserved_words(key, schema)
+                    update_unique_items(key, schema)
+                    adjust_patterns(key, schema)
+                    limit_max_items(key, schema, max_items=proposed_max_items)
+                    find_fix_encoding(key, schema)
+                except Exception as err:
+                    print(f'key: {key}')                
+                    print("error cleaning up json schema: ", err)
+                    raise Exception(err)
+
+    # TODO: Temporarily disbled, poor peroforance with larger schemas 
+    # choices_found_dict = find_choices(resolved_schema)
+    choices_found_dict = None
     
-    for data_k, data_val in data_schema.items():
-        obj_name = data_k
-        
-        if data_k == "properties":
-        
-            for prop_k, prop_val in data_val.items():
-                
-                data_name = prop_k
-                
-                for inner_prop_k, inner_prop_val in prop_val.items():
-            
-                    if inner_prop_k == "type":
-                        data_type = inner_prop_val
-                        
-                        if data_type == "string":
-                            
-                            data_max = None
-                            if inner_prop_k == "maxLength":
-                                data_max = inner_prop_val                
-                            
-                            data_val = fake.pystr(max_chars=data_max)
-                        elif data_type == "number":
-                            
-                            data_min = 0
-                            if inner_prop_k == "minimum":
-                                data_min = inner_prop_val
-                                
-                            data_max = 9999
-                            if inner_prop_k == "maximum":
-                                data_max = inner_prop_val
-                                
-                            if inner_prop_k == "exclusiveMinimum":
-                                data_min = inner_prop_val
-                                
-                            if inner_prop_k == "exclusiveMaximum":
-                                data_max = inner_prop_val                                                                           
-                            
-                            data_val = fake.pyint(min_value=data_min, max_value=data_max)
-                    
-                    
-    if data_name == None:
-        ret_val = {}
-    else:            
-        ret_val = {data_name : data_val}
-        
-    return ret_val
+    return schema, choices_found_dict
+    
 
-def gen_fake_data(schema_dict: dict) -> json:
-
-    # print(schema_dict)
+def gen_fake_data(schema: dict) -> json:
+    print("gen_fake_data")
     
     fake_data_json = {}
     
@@ -504,25 +412,14 @@ def gen_fake_data(schema_dict: dict) -> json:
     while i < lim:
           
         try:   
-            # time.sleep(2.0)
-            faker = JSF(schema_dict)
-            
-            # Attempt at threading...
-            # faker = await JSF(schema_dict)
-            # yield faker              
-                
+            faker = JSF(schema)                
             fake_data_json = faker.generate()
-            # print(str(fake_data_json))
-            
-            # Attempt at threading...
-            # fake_data_json = await faker.generate()
-            # yield fake_data_json
             
             if not fake_data_json:
                 i += 1
                 time_to_wait = i * .3
                 time.sleep(time_to_wait)                
-                print("data missing")
+                print("no data, trying again....")
             else:
                 for value in fake_data_json.values():
                     if not value:
@@ -530,20 +427,18 @@ def gen_fake_data(schema_dict: dict) -> json:
                         time_to_wait = i * .3
                         time.sleep(time_to_wait)
                     else:
-                        print("value found")
+                        print("data generated")
                         i = lim
                         break                        
                 
         except Exception as err:
-            
-            if i < lim:
-                i += 1
-                print("error attempting to gen fake data: ", err)
-                print(f"data gen attempt {i}, trying again")
-                time_to_wait = i * .3
-                time.sleep(time_to_wait)           
-            else:
-                raise Exception(err)
+            i = lim
+            print('--------------------')
+            print('schema:')
+            print(schema)
+            print('--------------------')
+            print("error attempting to gen fake data: ", err)
+            raise Exception(err)
             
     return fake_data_json 
 
@@ -566,13 +461,9 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
                 
                     # Get a randomized choice option
                     choice_list = list(choice_data.keys())
-                    # print(choice_list)
                     randomized_key = randrange(0, len(choice_list))
-                    # print(randomized_key)
                     select_choice_opt_key = choice_list[randomized_key]
-                    # print(choice_data)
                     select_choice_opt_data = choice_data.get(select_choice_opt_key)
-                    # print("selected choice option at key "+ str(select_choice_opt_key))
                     
                     # Clear out all choice options
                     for choice_opt_key in choice_data.copy():
@@ -587,13 +478,8 @@ def cleanup_choices(fake_data: dict, choices_found: dict) -> benedict:
 def gen_data_from_schema(schema: dict) -> ReturnVal:
     """
     Generates fake data based on the schema
-
-    Args:
-        schema (str): JSON Schema
-
-    Returns:
-        str: Fake generated data based on the JSON Schema
     """
+    
     ret_val = ReturnVal()
 
     # Validate before changes
@@ -602,23 +488,24 @@ def gen_data_from_schema(schema: dict) -> ReturnVal:
     except Exception as err:
         ret_val.err_msg = err
         return ret_val
-        # raise Exception(err) 
     
-    schema_bene, choices_found = resolve_inner_refs(schema)
+    schema_bene, choices_found = cleanup_schema_for_data_gen(schema)
     
-    schema_json = schema_bene.to_json()
-    schema_dict = json.loads(schema_json)
+    # schema_json = schema_bene.to_json()
+    # schema_dict = json.loads(schema_json)
     
-    # Validate after adjustments for 3rd party acceptance
-    try:
-        validate_schema(schema_dict)
-    except Exception as err:
-        ret_val.err_msg = err
-        return ret_val
-        # raise Exception(err)
+    # write_filename = "test_schema.json"
+    # write_to_file(schema_dict, write_filename)
+    # print(f"schema writtern to file {write_filename}")
     
-    fake_data = gen_fake_data(schema_dict)
-    fake_data = cleanup_choices(fake_data, choices_found)
+    # try:
+    #     validate_schema(schema_dict)
+    # except Exception as err:
+    #     ret_val.err_msg = err
+    #     return ret_val
+    
+    fake_data = gen_fake_data(schema)
+    # fake_data = cleanup_choices(fake_data, choices_found)
     ret_val.gen_data = fake_data
 
     return ret_val

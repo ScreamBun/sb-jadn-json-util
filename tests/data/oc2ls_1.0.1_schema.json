@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "http://oasis-open.org/openc2/oc2ls/v1.0.1",
   "title": "Language schema with errata",
-  "version": "1",
+  "version": "0",
   "description": "OpenC2 LS version 1.0 + errata",
   "type": "object",
   "additionalProperties": false,
@@ -269,18 +269,17 @@
       "uniqueItems": true,
       "minItems": 1,
       "maxItems": 100,
-      "items": [
-        {
+      "items": {
+        "type": "object",
+        "properties": {
           "Targets": {
             "$ref": "#/definitions/Action"
-          }
-        },
-        {
+          },
           "Action": {
             "$ref": "#/definitions/Targets"
           }
         }
-      ]
+      }
     },
     "Targets": {
       "title": "Targets",

@@ -4157,7 +4157,7 @@
         "type": "string",
         "description": "A non-colonized name as defined by XML Schema Part 2: Datatypes Second Edition. https://www.w3.org/TR/xmlschema11-2/#NCName.",
         "maxLength": 5555,
-        "pattern": "^[a-zA-Z_][\\w.-]*$"
+        "pattern": "^(nfs:\/\/)(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):([0-9]{4})"
       },
       "URIDatatype": {
         "title": "URIDatatype",
