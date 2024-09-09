@@ -113,8 +113,8 @@ def is_recursion_found(data: benedict, key: str, pointer: str) -> bool:
         if parent_keys.count(pointer_name) > 1:
             recursion_found = True
             
-        elif pointer_keys.count(pointer_name) >= 1:
-            recursion_found = True        
+        # elif pointer_keys.count(pointer_name) >= 1:
+        #     recursion_found = True        
             
         elif inner_refs:
             
@@ -145,7 +145,6 @@ def update_inner_refs(schema: dict | benedict) -> benedict:
             ref_key_updated = ref_key.replace(generator_constants.SLASH_DOL_REF, "")
             
             recursion_found = is_recursion_found(schema, ref_key_updated, pointer_updated)
-            
             if recursion_found:
                 print("warning: recursion found, removing for generation: ", ref_key_updated)
                 del schema[ref_key_updated]                 
@@ -269,7 +268,6 @@ def replace_reserved_words(key: str, schema: benedict) -> benedict:
         removed_keys.append(key)
         print(f"{key} Reserved word replaced {generator_constants.RES_WORD_TYPE} => {generator_constants.RES_WORD_TYPE_ALT}")
         
-        
     if removed_keys:
         # Update ref pointers
         ref_key_list = get_keys(schema, False, generator_constants.DOL_REF)
@@ -283,7 +281,6 @@ def replace_reserved_words(key: str, schema: benedict) -> benedict:
                     pointer_updated = pointer.replace(generator_constants.RES_WORD_TYPE, generator_constants.RES_WORD_TYPE_ALT) 
                     schema[ref_key] = pointer_updated
                     print("Reserved word found in ref and updated", pointer)  
-                
                 
         # Update required fields
         req_key_list = get_keys(schema, False, generator_constants.REQUIRED)
@@ -332,20 +329,16 @@ def adjust_patterns(key: str, schema: benedict) -> benedict:
     return schema
 
 def determine_max_items(num_of_keys: int) -> int:
+    # Note, the numbers below may need to be adjusted or smarter....
+    # They significantly impact the size of the data generated.
     max = 1
     
-    if num_of_keys < 100000 and num_of_keys >= 50000:
+    if num_of_keys < 10000 and num_of_keys >= 5000:
         max = 2
-    elif num_of_keys < 50000 and num_of_keys >= 10000:
-        max = 4
-    elif num_of_keys < 10000 and num_of_keys >= 5000:
-        max = 6
     elif num_of_keys < 5000 and num_of_keys >= 1000:
-        max = 8
-    elif num_of_keys < 1000 and num_of_keys >= 500:
-        max = 10
-    elif num_of_keys < 500:
-        max = 12
+        max = 3
+    elif num_of_keys < 1000:
+        max = 4
     
     return max
 
@@ -364,7 +357,8 @@ def cleanup_schema_for_data_gen(schema: str | dict | benedict) -> {benedict, dic
     
     fix_root_ref(schema)
     add_required_root_items(schema)
-    update_inner_refs(schema)
+    # update_inner_refs(schema)
+    # replace_reserved_words(schema) # May need to be optimized
     
     keys_list = schema.keypaths(indexes=False)
     num_of_keys = len(keys_list)
@@ -373,7 +367,7 @@ def cleanup_schema_for_data_gen(schema: str | dict | benedict) -> {benedict, dic
     print(f'Proposed max items: {str(proposed_max_items)}')
     
     for key in keys_list:
-        print(f'{key}')
+        # print(f'{key}')
         
         if key.startswith("definitions/"):
                 
@@ -398,6 +392,8 @@ def cleanup_schema_for_data_gen(schema: str | dict | benedict) -> {benedict, dic
     # TODO: Temporarily disbled, poor peroforance with larger schemas 
     # choices_found_dict = find_choices(resolved_schema)
     choices_found_dict = None
+    
+    update_inner_refs(schema)
     
     return schema, choices_found_dict
     
@@ -433,10 +429,10 @@ def gen_fake_data(schema: dict) -> json:
                 
         except Exception as err:
             i = lim
-            print('--------------------')
-            print('schema:')
-            print(schema)
-            print('--------------------')
+            # print('--------------------')
+            # print('schema:')
+            # print(schema)
+            # print('--------------------')
             print("error attempting to gen fake data: ", err)
             raise Exception(err)
             
@@ -483,26 +479,27 @@ def gen_data_from_schema(schema: dict) -> ReturnVal:
     ret_val = ReturnVal()
 
     # Validate before changes
+    # try:
+    #     validate_schema(schema)
+    # except Exception as err:
+    #     ret_val.err_msg = err
+    #     return ret_val
+    
+    schema_bene, choices_found = cleanup_schema_for_data_gen(schema)
+    
+    schema_json = schema_bene.to_json()
+    schema_dict = json.loads(schema_json)
+    
+    # write_filename = "test_schema.json"
+    # write_file('./', write_filename, schema_json)
+    # print(f"schema writtern to file {write_filename}")
+    
+    # Validate after changes
     try:
         validate_schema(schema)
     except Exception as err:
         ret_val.err_msg = err
-        return ret_val
-    
-    schema_bene, choices_found = cleanup_schema_for_data_gen(schema)
-    
-    # schema_json = schema_bene.to_json()
-    # schema_dict = json.loads(schema_json)
-    
-    # write_filename = "test_schema.json"
-    # write_to_file(schema_dict, write_filename)
-    # print(f"schema writtern to file {write_filename}")
-    
-    # try:
-    #     validate_schema(schema_dict)
-    # except Exception as err:
-    #     ret_val.err_msg = err
-    #     return ret_val
+        return ret_val    
     
     fake_data = gen_fake_data(schema)
     # fake_data = cleanup_choices(fake_data, choices_found)
